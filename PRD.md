@@ -1,4 +1,4 @@
-# PRD: Aldebaran — Un sistema para gestión de clientes y pagos
+# PRD: Aldebaran — Un sistema para gestión de clientes y pagos (v2)
 
 ## Contexto y Problema
 Mi empresa vende Software as a Service. Hoy el proceso de cobro lo estoy llevando yo a mano, generando las facturas de cobro todos los meses, enviando a los clientes los emails con las facturas y los resúmenes de deuda y además después controlo los pagos cuando el cliente me envía por mail el cupón de pago.

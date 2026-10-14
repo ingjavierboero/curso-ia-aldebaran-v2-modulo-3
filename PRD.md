@@ -551,3 +551,4 @@ AC-213 a AC-215 son pruebas de rendimiento: se verifican fuera de la suite de te
 - Riesgo: para facturar en producción, el PDF debe cumplir los requisitos de ARCA para comprobantes impresos (por ejemplo, el código QR de RG 4892), que este MVP no incluye → mitigación: completarlos antes de pasar a producción, junto con los datos de la empresa emisora (RF-91).
 - Riesgo: la cotización del dólar blue de una fuente no oficial (dolarhoy.com) podría no ser válida para emitir una factura legal → mitigación: confirmar con el contador si esta modalidad es válida antes de pasar a facturación real en producción; mientras tanto, dejar registrada en cada factura la fuente y el valor de cotización utilizado para poder auditarlo.
 - Dependencia: API de Claude · Gmail (SMTP e IMAP) · SQLite · ambiente de homologación de ARCA · dolarhoy.com (cotización del dólar blue).
+

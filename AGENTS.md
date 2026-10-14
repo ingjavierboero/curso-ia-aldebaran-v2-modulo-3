@@ -2,7 +2,7 @@
 
 ## Propósito
 Sistema SaaS interno que genera cada mes las facturas de los clientes (en homologación de ARCA),
-se las envía por email y valida con un LLM los comprobantes de pago que responden. Spec: `PRD-002.md`.
+se las envía por email y valida con un LLM los comprobantes de pago que responden. Spec: `PRD.md`.
 
 ## Stack
 - Node 24 LTS + TypeScript 7. Monorepo con npm workspaces: `server/` y `web/`.

@@ -1,0 +1,23 @@
+# Dependencias y builds
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Variables de entorno (la plantilla sí se versiona)
+.env
+.env.*
+!.env.example
+
+# Bases SQLite (real y mock)
+data/
+
+# Certificados y claves de ARCA: nunca se versionan
+certs/
+*.crt
+*.key
+*.pem
+
+# Sistema / editores
+.DS_Store
+*.log

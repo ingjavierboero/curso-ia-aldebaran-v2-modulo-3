@@ -10,11 +10,13 @@ Para el MVP, la facturación se genera contra el **ambiente de homologación de 
 - **Admin**: hoy soy yo (Javier) el único usuario del sistema, con perfil Admin, y gestiono todo (ABMs, confirmación de pagos, configuración).
 - **Editor**: perfil pensado para incorporar en el futuro a alguien que administre clientes/productos/deudas sin acceso a la gestión de usuarios. Por ahora no tiene personas asignadas.
 - **Consulta**: perfil pensado para incorporar en el futuro a alguien (por ejemplo un contador o un asistente administrativo) que necesite ver el estado de clientes y deudas sin poder modificarlos. Por ahora no tiene personas asignadas.
+- **Evaluador**: persona que evalúa la app sin acceso a la API key de Anthropic, a los certificados de ARCA ni a las credenciales de Gmail. Necesita recorrer todo el circuito (facturación, envío, recepción y validación de comprobantes) con servicios simulados (modo mock).
 
 ## Objetivos
 - El 100% de las facturas deben ser generadas (en homologación de ARCA) y enviadas a los clientes el día 15 de cada mes (o antes, si un Admin ejecuta la facturación manualmente) o, si el sistema no estaba funcionando ese día, el día en que vuelva a funcionar dentro del mismo mes (salvo los períodos cuya facturación un Admin canceló)
 - El 100% de los pagos recibidos deben ser controlados por el sistema
 - La intervención del usuario debe ser mínima, solamente para confirmar el pago de la factura o resolver casos de revisión manual
+- La app debe poder evaluarse de punta a punta en modo mock, sin credenciales de ARCA, Anthropic ni Gmail
 
 ## Requerimientos Funcionales
 
@@ -25,7 +27,9 @@ Para el MVP, la facturación se genera contra el **ambiente de homologación de 
 - Usuario: **Activo** o **Inactivo** (un usuario dado de baja pasa a Inactivo; un usuario reactivado vuelve a Activo). Sus datos son nombre, email, perfil y contraseña; inicia sesión con su email.
 - Cliente: **Activo** o **Inactivo** (un cliente dado de baja pasa a Inactivo; un cliente reactivado vuelve a Activo).
 - **Email de facturación**: la dirección de email registrada de un cliente. A ella se le envían los emails del cliente y con ella se identifican los emails que el cliente responde.
-- **Casilla del sistema**: la casilla de email propia del sistema (GMAIL_USER), desde la que se envían los emails y en la que se reciben las respuestas de los clientes.
+- **Casilla del sistema**: la casilla de email propia del sistema (GMAIL_USER; en modo mock, aldebaran-mock@gmail.com), desde la que se envían los emails y en la que se reciben las respuestas de los clientes.
+- **Modo mock**: modo de funcionamiento que se activa con la variable de entorno MOCK_MODE=true, en el que el sistema simula ARCA, el LLM y el email (SMTP e IMAP) y trabaja sobre una base de datos propia, separada de la del modo real. Con cualquier otro valor, o sin la variable, el sistema usa los servicios reales.
+- **Casilla simulada**: en modo mock, reemplaza a la casilla del sistema: guarda los emails que el sistema envía y los emails recibidos que carga un usuario.
 - Factura:
   - **Pendiente de pago**: la factura fue generada, o un usuario la devolvió a este estado, y no tiene un comprobante válido. El agente sigue buscando su pago en la casilla.
   - **Pago recibido**: el agente validó un comprobante que cubre la factura; espera que un usuario lo analice.
@@ -260,6 +264,37 @@ Reglas que acompañan a las anteriores:
 - RF-181: Mientras haya al menos un error de proceso Pendiente, el sistema debe mostrar el banner de errores con la cantidad de errores Pendientes.
 - RF-182: Si falla una acción iniciada por un usuario (por ejemplo, el envío de un recordatorio manual), el sistema debe mostrarle un mensaje de error.
 - RF-183: El sistema no debe reintentar automáticamente ni registrar un error de proceso nuevo cuando falla una acción iniciada por un usuario.
+
+### Modo mock
+- RF-184: El sistema debe funcionar en modo mock solo cuando la variable de entorno MOCK_MODE vale "true".
+- RF-185: En modo mock, el agente no debe conectarse a ARCA (ni a WSAA ni a WSFEv1).
+- RF-186: En modo mock, el agente debe autorizar cada factura con el número siguiente al de la última factura emitida en modo mock en ese punto de venta (empezando por 1) y con un CAE ficticio de 14 dígitos que vence 10 días después de la fecha de emisión.
+- RF-187: En modo mock, el agente no debe llamar a la API de Claude.
+- RF-188: En modo mock, el agente debe clasificar cada adjunto según su nombre de archivo, con las reglas RF-189 a RF-193, sin distinguir mayúsculas de minúsculas.
+- RF-189: En modo mock, el agente debe clasificar como "si" un adjunto llamado `pago_<CUIT>_<monto>.<extensión>`, con ese CUIT y ese monto (con punto decimal, por ejemplo `pago_30711111111_15000.50.pdf`).
+- RF-190: En modo mock, cuando el nombre de un adjunto "si" tiene una `x` en lugar del CUIT o del monto, el agente debe considerar que ese dato no se pudo extraer.
+- RF-191: En modo mock, el agente debe clasificar como "dudoso" un adjunto cuyo nombre empieza con `dudoso`.
+- RF-192: En modo mock, el agente debe marcar como erróneo el procesamiento de un adjunto cuyo nombre empieza con `error`.
+- RF-193: En modo mock, el agente debe clasificar como "no" un adjunto cuyo nombre no cumple ninguna de las reglas RF-189 a RF-192.
+- RF-194: En modo mock, el sistema no debe conectarse a Gmail (ni por SMTP ni por IMAP).
+- RF-195: En modo mock, el sistema debe usar aldebaran-mock@gmail.com como dirección de la casilla del sistema.
+- RF-196: En modo mock, el sistema debe guardar en la casilla simulada cada email que envía (facturas y recordatorios), con su destinatario, asunto, cuerpo, adjuntos y fecha de envío.
+- RF-197: En modo mock, el sistema debe mostrar a un Admin todos los emails de la casilla simulada, enviados y recibidos.
+- RF-198: En modo mock, el sistema debe mostrar a un Editor o a un usuario Consulta solo los emails de la casilla simulada recibidos desde el email de facturación de un cliente.
+- RF-199: En modo mock, el sistema no debe permitir solicitar la recuperación de contraseña.
+- RF-200: En modo mock, el sistema debe permitir a un Admin o Editor cargar en la casilla simulada un email recibido, con su remitente, asunto, cuerpo y adjuntos.
+- RF-201: El sistema debe registrar como fecha de recepción de cada email cargado en la casilla simulada el momento en que se carga.
+- RF-202: El sistema debe asignar un Message-ID único a cada email recibido que se carga en la casilla simulada.
+- RF-203: En modo mock, el agente debe procesar los emails recibidos de la casilla simulada en la siguiente revisión de la casilla, con las mismas reglas que los emails recibidos en la casilla del sistema.
+- RF-204: Fuera del modo mock, el sistema no debe permitir acceder a la casilla simulada ni cargar emails en ella.
+- RF-205: En modo mock, el sistema debe arrancar y funcionar con MOCK_MODE como única variable de entorno definida.
+- RF-206: En modo mock, si ARCA_CUIT no está definida, el agente debe usar 20111111112 como CUIT del emisor.
+- RF-207: En modo mock, si SCHEDULER_ENABLED no está definida, el agente debe ejecutar los procesos automáticos (facturación, recordatorios y revisión de la casilla).
+- RF-208: En modo mock, el sistema no debe mostrar el banner de certificado.
+- RF-209: En modo mock, el sistema debe mostrar en el header de todas las pantallas el indicador "Modo mock: ARCA, LLM y email simulados".
+- RF-210: En modo mock, el agente debe indicar en el PDF de cada factura y en cada email que envía que fue generado en modo mock y es simulado.
+- RF-211: En modo mock, el sistema debe usar siempre la base de datos data/aldebaran-mock.db, sin tener en cuenta DATABASE_PATH.
+- RF-212: Fuera del modo mock, el sistema no debe leer ni escribir la base de datos data/aldebaran-mock.db.
 
 ## Requerimientos No Funcionales
 - RNF-01: El p95 del tiempo de procesamiento de un email de respuesta, medido desde que se detecta hasta que queda registrado el resultado (lectura, clasificación por LLM, validación y eventuales reintentos de RNF-02), debe ser menor a 60 segundos.
@@ -497,32 +532,52 @@ AC-141 y AC-142 verifican una regla de resguardo que el flujo normal no produce 
 - AC-193 (RF-181): Dado un único error de proceso Pendiente, cuando pasa a Resuelto, entonces el banner de errores deja de mostrarse en el dashboard.
 - AC-194 (RF-182, RF-183): Dado un servidor de email que rechaza el envío a un cliente con deuda vigente, cuando un usuario le envía un recordatorio manual desde el dashboard, entonces el sistema muestra un mensaje de error, realiza un único intento y no registra ningún error de proceso.
 
+### Modo mock
+- AC-195 (RF-184, RF-209): Dado MOCK_MODE=true, cuando un usuario autenticado abre cualquier pantalla, entonces el header muestra el indicador "Modo mock: ARCA, LLM y email simulados"; y dado MOCK_MODE=false o sin la variable, el indicador no se muestra.
+- AC-196 (RF-185, RF-186): Dados el modo mock y el punto de venta 3 sin facturas emitidas en modo mock, cuando el agente genera dos facturas, entonces no se hace ninguna llamada a ARCA y las facturas quedan con los números 1 y 2 en el punto de venta 3, cada una con un CAE de 14 dígitos que vence 10 días después de su fecha de emisión.
+- AC-197 (RF-187, RF-188, RF-189): Dados el modo mock y un cliente con el CUIT 30711111111 y una única factura adeudada de $15.000,50 en Pendiente de pago, cuando llega un email suyo con el adjunto `pago_30711111111_15000.50.pdf`, entonces no se llama a la API de Claude, el adjunto se clasifica como "si" con ese CUIT y ese monto, y la factura pasa a Pago recibido.
+- AC-198 (RF-190): Dados el modo mock y un cliente con deuda vigente que no está en revisión, cuando llega un email suyo con el adjunto `PAGO_x_15000.50.PDF`, o con el adjunto `pago_30711111111_x.png`, entonces sus facturas adeudadas pasan a Revisión manual con el motivo "no se pudieron extraer el CUIT o el monto".
+- AC-199 (RF-191, RF-192, RF-193): Dados el modo mock y un cliente con deuda vigente que no está en revisión, cuando llega un email suyo con el adjunto `dudoso_transferencia.jpg`, entonces sus facturas adeudadas pasan a Revisión manual con el motivo "clasificación dudosa"; con el adjunto `error_1.pdf`, con el motivo "no se pudo procesar el comprobante"; y con el adjunto `factura_proveedor.pdf`, el adjunto se clasifica como "no" y ninguna factura cambia de estado.
+- AC-200 (RF-194, RF-195, RF-196, RF-197): Dado el modo mock, cuando el agente envía el email de una factura, entonces no se conecta a Gmail, y un Admin ve el email entre los enviados de la casilla simulada con el remitente aldebaran-mock@gmail.com, su destinatario, asunto, cuerpo, PDF adjunto y fecha de envío.
+- AC-201 (RF-195): Dado el modo mock, cuando un Admin carga en la casilla simulada un email recibido con el remitente aldebaran-mock@gmail.com, entonces en la siguiente revisión de la casilla el email no se registra como aviso, no se clasifica y no cambia el estado de ninguna factura.
+- AC-202 (RF-199): Dado el modo mock, cuando un visitante abre la pantalla de inicio de sesión, entonces no ve la opción de recuperar la contraseña; y una solicitud directa al endpoint de recuperación es rechazada y no se guarda ningún email en la casilla simulada.
+- AC-203 (RF-200, RF-201, RF-202, RF-203): Dados el modo mock y el intervalo de revisión por defecto, cuando un Admin o Editor carga un email recibido desde el email de facturación de un cliente, con asunto, cuerpo y un adjunto, entonces el email recibe un Message-ID único y como fecha de recepción el momento de la carga, no se procesa antes de la siguiente revisión de la casilla, esa revisión no se conecta a Gmail y en ella queda registrado en el historial del cliente con el resultado de su procesamiento.
+- AC-204 (RF-205, RF-207): Dado MOCK_MODE=true como única variable de entorno definida, cuando arranca el sistema, entonces arranca, el agente ejecuta el proceso de facturación del día 15 y procesa los emails cargados en la casilla simulada.
+- AC-205 (RF-206): Dados el modo mock y ARCA_CUIT sin definir, cuando el agente genera una factura, entonces el PDF muestra 20111111112 como CUIT del emisor; y con ARCA_CUIT definida, muestra ese valor.
+- AC-206 (RF-208): Dados el modo mock y ningún certificado de ARCA configurado, cuando un usuario autenticado abre el dashboard, entonces no ve el banner de certificado.
+- AC-207 (RF-210): Dado el modo mock, cuando el agente envía el email de una factura o un recordatorio, entonces el PDF de la factura y el cuerpo de cada email indican que fueron generados en modo mock y son simulados.
+- AC-208 (RF-211, RF-212): Dados un cliente y una factura creados en modo mock, cuando el sistema se reinicia fuera del modo mock, entonces ni el cliente ni la factura aparecen; y dados un cliente y una factura creados fuera del modo mock, cuando el sistema se reinicia en modo mock, tampoco aparecen.
+- AC-209 (RF-211): Dados MOCK_MODE=true y DATABASE_PATH apuntando a la base del modo real, cuando se crea un cliente en modo mock, entonces el cliente queda en data/aldebaran-mock.db y la base del modo real no cambia.
+
 ### Control de acceso
-- AC-195 (RF-01): Dado un visitante sin sesión iniciada, cuando intenta acceder a cualquier pantalla o endpoint distinto del inicio de sesión, la solicitud de recuperación de contraseña, la pantalla de cambio de contraseña con token y, mientras no exista ningún usuario, la pantalla de registro del primer Admin, entonces el sistema rechaza el acceso y no devuelve ningún dato.
-- AC-196 (RF-05): Dado el sistema con al menos un usuario registrado, cuando un visitante intenta abrir la pantalla de registro del primer Admin o llamar a su endpoint, entonces el sistema rechaza el acceso y no se crea ningún usuario.
-- AC-197 (RF-09, RF-11, RF-161): Dado un usuario con perfil Editor o Consulta, cuando intenta abrir el listado de usuarios o los datos de un usuario, entonces el sistema rechaza el acceso y no devuelve ningún dato de usuarios.
-- AC-198 (RF-10): Dado un usuario con perfil Editor, cuando intenta crear, modificar, dar de baja o reactivar un usuario, entonces el sistema rechaza la acción y nada cambia.
-- AC-199 (RF-10, RF-13): Dado un usuario con perfil Editor o Consulta, cuando intenta cambiar cualquier valor de la configuración (intervalo de revisión, hora de facturación, hora de recordatorios, cantidad de reintentos, espera entre reintentos, punto de venta o datos de la empresa emisora), entonces el sistema rechaza la acción y el valor no cambia.
-- AC-200 (RF-10, RF-13, RF-54, RF-56, RF-58): Dado un usuario con perfil Editor o Consulta, cuando intenta cancelar la facturación de un período, reactivar la de un período cancelado o ejecutar "Facturar ahora", entonces el sistema rechaza la acción, el período no cambia y no se genera ninguna factura.
-- AC-201 (RF-13): Dado un usuario con perfil Consulta, cuando intenta crear, modificar, dar de baja, desactivar o reactivar un usuario (salvo cambiar su propia contraseña), cliente, producto o asignación, cambiar el estado de una factura, marcar un aviso como Revisado, confirmar la cotización de respaldo, o reintentar o marcar como Resuelto un error de proceso, entonces el sistema rechaza la acción y el registro no cambia.
-- AC-202 (RF-21): Dado un usuario autenticado de cualquier perfil, cuando envía al endpoint de cambio de contraseña una solicitud que indica a otro usuario, entonces el sistema rechaza la acción y la contraseña del otro usuario no cambia.
+- AC-210 (RF-01): Dado un visitante sin sesión iniciada, cuando intenta acceder a cualquier pantalla o endpoint distinto del inicio de sesión, la solicitud de recuperación de contraseña, la pantalla de cambio de contraseña con token y, mientras no exista ningún usuario, la pantalla de registro del primer Admin, entonces el sistema rechaza el acceso y no devuelve ningún dato.
+- AC-211 (RF-05): Dado el sistema con al menos un usuario registrado, cuando un visitante intenta abrir la pantalla de registro del primer Admin o llamar a su endpoint, entonces el sistema rechaza el acceso y no se crea ningún usuario.
+- AC-212 (RF-09, RF-11, RF-161): Dado un usuario con perfil Editor o Consulta, cuando intenta abrir el listado de usuarios o los datos de un usuario, entonces el sistema rechaza el acceso y no devuelve ningún dato de usuarios.
+- AC-213 (RF-10): Dado un usuario con perfil Editor, cuando intenta crear, modificar, dar de baja o reactivar un usuario, entonces el sistema rechaza la acción y nada cambia.
+- AC-214 (RF-10, RF-13): Dado un usuario con perfil Editor o Consulta, cuando intenta cambiar cualquier valor de la configuración (intervalo de revisión, hora de facturación, hora de recordatorios, cantidad de reintentos, espera entre reintentos, punto de venta o datos de la empresa emisora), entonces el sistema rechaza la acción y el valor no cambia.
+- AC-215 (RF-10, RF-13, RF-54, RF-56, RF-58): Dado un usuario con perfil Editor o Consulta, cuando intenta cancelar la facturación de un período, reactivar la de un período cancelado o ejecutar "Facturar ahora", entonces el sistema rechaza la acción, el período no cambia y no se genera ninguna factura.
+- AC-216 (RF-13): Dado un usuario con perfil Consulta, cuando intenta crear, modificar, dar de baja, desactivar o reactivar un usuario (salvo cambiar su propia contraseña), cliente, producto o asignación, cambiar el estado de una factura, marcar un aviso como Revisado, confirmar la cotización de respaldo, o reintentar o marcar como Resuelto un error de proceso, entonces el sistema rechaza la acción y el registro no cambia.
+- AC-217 (RF-21): Dado un usuario autenticado de cualquier perfil, cuando envía al endpoint de cambio de contraseña una solicitud que indica a otro usuario, entonces el sistema rechaza la acción y la contraseña del otro usuario no cambia.
+- AC-218 (RF-200, RF-13): Dado el modo mock, cuando un usuario Consulta intenta cargar un email recibido en la casilla simulada, entonces el sistema rechaza la acción y no se crea ningún email.
+- AC-219 (RF-204): Dado el sistema fuera del modo mock, cuando un Admin intenta abrir la casilla simulada o cargar un email en ella por endpoint, entonces el sistema rechaza el acceso y no se crea ningún email.
+- AC-220 (RF-198, RF-197): Dado el modo mock, con un email enviado a un cliente y un email recibido desde el email de facturación de un cliente en la casilla simulada, cuando un Editor o un usuario Consulta abre la casilla simulada, entonces ve solo el email recibido; y cuando la abre un Admin, ve los dos.
 
 ### Requerimientos no funcionales
-- AC-203 (RNF-10): Dado un usuario autenticado sin actividad durante 24 h, cuando realiza una nueva acción, entonces el sistema le exige iniciar sesión de nuevo.
-- AC-204 (RNF-10): Dado un usuario autenticado cuya última actividad fue hace 23 h, cuando realiza una nueva acción, entonces la acción se ejecuta sin pedirle que inicie sesión.
-- AC-205 (RNF-09): Dado un usuario dado de alta con una contraseña, cuando se lee su registro en la base de datos, entonces el campo de contraseña tiene un hash bcrypt con costo ≥ 12 o un hash argon2id, y no contiene la contraseña en texto plano.
-- AC-206 (RNF-08, RNF-11): Dado el repositorio con todo su historial, cuando se ejecuta gitleaks (herramienta gratuita y de código abierto) con su configuración por defecto, entonces no reporta ningún hallazgo.
-- AC-207 (RNF-08): Dada la variable de entorno ANTHROPIC_API_KEY con un valor de prueba, cuando el agente llama al LLM (mockeado), entonces la llamada usa ese valor.
-- AC-208 (RNF-11): Dadas las variables de entorno GMAIL_USER, GMAIL_APP_PASSWORD, ARCA_CUIT, ARCA_CERT_PATH y ARCA_KEY_PATH con valores de prueba, cuando el agente se conecta a la casilla de email y a ARCA (mockeados), entonces usa esos valores.
-- AC-209 (RNF-07): Dados ARCA, el servidor de email y dolarhoy.com mockeados sin responder, cuando el agente hace una llamada a cada uno, entonces da la llamada por fallida a los 30 s, 30 s y 10 s respectivamente (±1 s).
-- AC-210 (RNF-12): Dado un servidor con el reloj del sistema en UTC y la hora de facturación por defecto (11:00), cuando llega el día 15, entonces el proceso de facturación no se inicia a las 11:00 UTC (08:00 en Argentina) y sí se inicia a las 14:00 UTC (11:00 en Argentina).
-- AC-211 (RNF-13): Dado un cliente con una sola factura adeudada de $15.000,00, en Pendiente de pago, cuando llega un comprobante clasificado como "si" con su CUIT y un monto de $15.000,01, entonces la factura pasa a Revisión manual con el motivo "monto no coincide".
-- AC-212 (RNF-13): Dado un cliente con deuda vigente que no está en revisión, cuando llega un comprobante clasificado como "si" con su CUIT y un monto de $0, entonces sus facturas adeudadas pasan a Revisión manual con el motivo "monto no coincide".
+- AC-221 (RNF-10): Dado un usuario autenticado sin actividad durante 24 h, cuando realiza una nueva acción, entonces el sistema le exige iniciar sesión de nuevo.
+- AC-222 (RNF-10): Dado un usuario autenticado cuya última actividad fue hace 23 h, cuando realiza una nueva acción, entonces la acción se ejecuta sin pedirle que inicie sesión.
+- AC-223 (RNF-09): Dado un usuario dado de alta con una contraseña, cuando se lee su registro en la base de datos, entonces el campo de contraseña tiene un hash bcrypt con costo ≥ 12 o un hash argon2id, y no contiene la contraseña en texto plano.
+- AC-224 (RNF-08, RNF-11): Dado el repositorio con todo su historial, cuando se ejecuta gitleaks (herramienta gratuita y de código abierto) con su configuración por defecto, entonces no reporta ningún hallazgo.
+- AC-225 (RNF-08): Dada la variable de entorno ANTHROPIC_API_KEY con un valor de prueba, cuando el agente llama al LLM (mockeado), entonces la llamada usa ese valor.
+- AC-226 (RNF-11): Dadas las variables de entorno GMAIL_USER, GMAIL_APP_PASSWORD, ARCA_CUIT, ARCA_CERT_PATH y ARCA_KEY_PATH con valores de prueba, cuando el agente se conecta a la casilla de email y a ARCA (mockeados), entonces usa esos valores.
+- AC-227 (RNF-07): Dados ARCA, el servidor de email y dolarhoy.com mockeados sin responder, cuando el agente hace una llamada a cada uno, entonces da la llamada por fallida a los 30 s, 30 s y 10 s respectivamente (±1 s).
+- AC-228 (RNF-12): Dado un servidor con el reloj del sistema en UTC y la hora de facturación por defecto (11:00), cuando llega el día 15, entonces el proceso de facturación no se inicia a las 11:00 UTC (08:00 en Argentina) y sí se inicia a las 14:00 UTC (11:00 en Argentina).
+- AC-229 (RNF-13): Dado un cliente con una sola factura adeudada de $15.000,00, en Pendiente de pago, cuando llega un comprobante clasificado como "si" con su CUIT y un monto de $15.000,01, entonces la factura pasa a Revisión manual con el motivo "monto no coincide".
+- AC-230 (RNF-13): Dado un cliente con deuda vigente que no está en revisión, cuando llega un comprobante clasificado como "si" con su CUIT y un monto de $0, entonces sus facturas adeudadas pasan a Revisión manual con el motivo "monto no coincide".
 
-AC-213 a AC-215 son pruebas de rendimiento: se verifican fuera de la suite de tests automáticos, contra el LLM real, el ambiente de homologación de ARCA y una casilla de email de prueba (los clientes del ensayo tienen direcciones de prueba como email de facturación).
-- AC-213 (RNF-01): Dado un set de al menos 100 emails de respuesta con adjunto, cuando el agente los procesa con el LLM real, entonces el p95 del tiempo entre la detección de cada email y el registro de su resultado es menor a 60 s.
-- AC-214 (RNF-03, RNF-05): Dados 50 clientes Activos, cada uno con 2 productos asignados de un catálogo de 10 productos, cuando el proceso de facturación se ejecuta el día 15, entonces las 50 facturas quedan generadas en el ambiente de homologación de ARCA y sus 50 emails enviados en 20 minutos o menos desde el inicio del proceso.
-- AC-215 (RNF-04, RNF-06): Dados 50 clientes Activos con deuda vigente que no están en revisión, cuando el proceso de recordatorios se ejecuta el último día del mes, entonces los 50 recordatorios quedan enviados en 20 minutos o menos desde el inicio del proceso.
+AC-231 a AC-233 son pruebas de rendimiento: se verifican fuera de la suite de tests automáticos, contra el LLM real, el ambiente de homologación de ARCA y una casilla de email de prueba (los clientes del ensayo tienen direcciones de prueba como email de facturación).
+- AC-231 (RNF-01): Dado un set de al menos 100 emails de respuesta con adjunto, cuando el agente los procesa con el LLM real, entonces el p95 del tiempo entre la detección de cada email y el registro de su resultado es menor a 60 s.
+- AC-232 (RNF-03, RNF-05): Dados 50 clientes Activos, cada uno con 2 productos asignados de un catálogo de 10 productos, cuando el proceso de facturación se ejecuta el día 15, entonces las 50 facturas quedan generadas en el ambiente de homologación de ARCA y sus 50 emails enviados en 20 minutos o menos desde el inicio del proceso.
+- AC-233 (RNF-04, RNF-06): Dados 50 clientes Activos con deuda vigente que no están en revisión, cuando el proceso de recordatorios se ejecuta el último día del mes, entonces los 50 recordatorios quedan enviados en 20 minutos o menos desde el inicio del proceso.
 
 ## Fuera de Alcance
 - Facturación real/productiva contra ARCA: en este MVP se factura contra el ambiente de homologación de ARCA; la emisión de comprobantes fiscales válidos en el ambiente productivo queda fuera de alcance y se evaluará en una fase posterior.
@@ -538,6 +593,11 @@ AC-213 a AC-215 son pruebas de rendimiento: se verifican fuera de la suite de te
 - Recuperación de los recordatorios automáticos de fin de mes que no se enviaron porque el sistema no estaba funcionando ese día.
 - Respaldos automáticos de la base de datos.
 - Filtros, búsquedas y ordenamientos de listados y reportes distintos de los de RF-168 a RF-170.
+- Recuperación de contraseña en modo mock.
+- Migrar o copiar datos entre la base del modo mock y la del modo real.
+- Simulación de fallas de ARCA en modo mock: el ARCA simulado autoriza todas las facturas.
+- Activar el modo mock por servicio (por ejemplo, simular solo ARCA): MOCK_MODE simula ARCA, el LLM y el email juntos.
+- Simulación de dolarhoy.com en modo mock: la cotización se sigue leyendo del sitio real.
 
 ## Riesgos y Dependencias
 - Riesgo: la factura no se puede generar en el ambiente de homologación de ARCA → mitigación: reintentos configurables (RF-171) y, si persiste, error de proceso en la interfaz de revisión y banner de errores en el dashboard (RF-174 a RF-181).
@@ -550,5 +610,6 @@ AC-213 a AC-215 son pruebas de rendimiento: se verifican fuera de la suite de te
 - Riesgo: dolarhoy.com no responde o cambia su formato al momento de facturar (no es una API oficial) → mitigación: usar la última cotización registrada y mostrar el banner de cotización para que un usuario la confirme (RF-67, RF-69 y RF-70); si no hay ninguna cotización registrada, no se genera la factura y se trata como error de proceso (RF-68, RF-171).
 - Riesgo: para facturar en producción, el PDF debe cumplir los requisitos de ARCA para comprobantes impresos (por ejemplo, el código QR de RG 4892), que este MVP no incluye → mitigación: completarlos antes de pasar a producción, junto con los datos de la empresa emisora (RF-91).
 - Riesgo: la cotización del dólar blue de una fuente no oficial (dolarhoy.com) podría no ser válida para emitir una factura legal → mitigación: confirmar con el contador si esta modalidad es válida antes de pasar a facturación real en producción; mientras tanto, dejar registrada en cada factura la fuente y el valor de cotización utilizado para poder auditarlo.
-- Dependencia: API de Claude · Gmail (SMTP e IMAP) · SQLite · ambiente de homologación de ARCA · dolarhoy.com (cotización del dólar blue).
+- Riesgo: MOCK_MODE queda activado por error en un ambiente real y se emiten facturas simuladas → mitigación: indicador de modo mock en el header (RF-209), leyenda en los PDF y emails (RF-210) y base de datos propia del modo mock, que no toca los datos del modo real (RF-211, RF-212).
+- Dependencia: API de Claude · Gmail (SMTP e IMAP) · SQLite · ambiente de homologación de ARCA · dolarhoy.com (cotización del dólar blue). En modo mock, el sistema no depende de la API de Claude, de Gmail ni de ARCA.
 

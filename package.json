@@ -14,7 +14,8 @@
     "build": "npm run build --workspaces",
     "typecheck": "npm run typecheck --workspaces",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate": "npm run db:generate -w server"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

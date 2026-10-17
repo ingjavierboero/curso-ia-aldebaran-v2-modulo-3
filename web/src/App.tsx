@@ -6,6 +6,7 @@ import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { ProductsPage } from './pages/products/ProductsPage';
 import { SetupPage } from './pages/SetupPage';
 import { LoginRoute, RequireAuth, SetupRoute } from './routes/guards';
 import { useSession } from './stores/session';
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
           { index: true, element: <HomePage /> },
           { path: 'clientes', element: <ClientsPage /> },
           { path: 'clientes/:id', element: <ClientDetailPage /> },
+          { path: 'productos', element: <ProductsPage /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

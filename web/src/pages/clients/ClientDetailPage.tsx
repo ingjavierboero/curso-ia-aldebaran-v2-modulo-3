@@ -14,6 +14,7 @@ import {
 } from '../../api/clients';
 import { formatCuit } from '../../domain/cuit';
 import { useCanEdit } from '../../stores/session';
+import { AssignedProductsCard } from './AssignedProductsCard';
 import { ClientFormModal } from './ClientFormModal';
 
 const Header = styled.div`
@@ -144,6 +145,10 @@ export function ClientDetailPage() {
           </Descriptions.Item>
         </Descriptions>
       </Card>
+
+      <div style={{ marginTop: 16 }}>
+        <AssignedProductsCard clientId={client.id} />
+      </div>
 
       <ClientFormModal
         open={formOpen}

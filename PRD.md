@@ -110,7 +110,7 @@ Para el MVP, la facturación se genera contra el **ambiente de homologación de 
 - RF-43: El sistema debe permitir que el precio de cada producto se fije en pesos o en dólares.
 - RF-44: El sistema no debe permitir dar de alta ni modificar un producto con un precio igual o menor a cero.
 - RF-45: El sistema debe permitir modificar el nombre de un producto.
-- RF-46: El sistema debe permitir modificar el precio de un producto.
+- RF-46: El sistema debe permitir modificar el precio de un producto y su moneda (pesos o dólares).
 - RF-47: El sistema debe permitir desactivar un producto, que pasa a estado Inactivo.
 - RF-48: El sistema debe permitir reactivar un producto Inactivo, que pasa a estado Activo.
 - RF-49: El sistema debe permitir asignar uno o varios productos Activos a un cliente.

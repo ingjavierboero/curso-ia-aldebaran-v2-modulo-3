@@ -25,7 +25,10 @@ try {
 // Abre la base y aplica las migraciones pendientes antes de aceptar requests.
 const database = openDatabase(config.databasePath);
 
-const server = createApp().listen(config.port, () => {
+const server = createApp({
+  db: database.db,
+  secureCookies: process.env.NODE_ENV === 'production',
+}).listen(config.port, () => {
   const mode = config.mockMode ? 'modo mock: ARCA, LLM y email simulados' : 'modo real';
   console.log(`Aldebaran server escuchando en http://localhost:${config.port} (${mode})`);
   console.log(`Base de datos: ${path.relative(ROOT_DIR, config.databasePath)}`);

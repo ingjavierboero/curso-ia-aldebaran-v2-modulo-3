@@ -1,25 +1,25 @@
-import type { Server } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { createApp } from './app.js';
+import { startTestApp, type TestApp } from './test/http.js';
 
-describe('GET /api/health', () => {
-  let server: Server;
-  let baseUrl: string;
+describe('app', () => {
+  let app: TestApp;
 
   beforeAll(async () => {
-    server = createApp().listen(0);
-    await new Promise<void>((resolve) => server.once('listening', resolve));
-    baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    app = await startTestApp();
   });
 
   afterAll(async () => {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await app.close();
   });
 
-  it('responde ok', async () => {
-    const res = await fetch(`${baseUrl}/api/health`);
+  it('GET /api/health responde ok sin sesión', async () => {
+    const res = await app.request('GET', '/api/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: 'ok' });
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+
+  it('responde 400 si el body no es JSON válido', async () => {
+    const res = await app.request('POST', '/api/auth/login', { rawBody: '{no es json' });
+    expect(res.status).toBe(400);
   });
 });

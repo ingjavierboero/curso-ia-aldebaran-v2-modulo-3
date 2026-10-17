@@ -7,7 +7,7 @@ se las envía por email y valida con un LLM los comprobantes de pago que respond
 ## Stack
 - Node 24 LTS + TypeScript 7. Monorepo con npm workspaces: `server/` y `web/`.
 - Backend: Express 5 · SQLite con Drizzle ORM 0.45 + better-sqlite3 (migraciones con drizzle-kit).
-- Frontend: React 19 + Vite 8 · antd 6 · zustand 5 · styled-components 6.
+- Frontend: React 19 + Vite 8 · antd 6 · zustand 5 · styled-components 6 · react-router 8.
 - LLM: `@anthropic-ai/sdk`, modelo `claude-haiku-4-5-20251001` (clasificación si/no/dudoso + extracción de CUIT/monto).
 - Email (Gmail con contraseña de aplicación): nodemailer (SMTP) + imapflow (IMAP).
 - ARCA: WSAA/WSFEv1 implementados a mano (SOAP), solo homologación.

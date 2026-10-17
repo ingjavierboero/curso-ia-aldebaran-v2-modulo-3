@@ -1,3 +1,53 @@
+import { Button, Result, Spin } from 'antd';
+import { useEffect } from 'react';
+import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router';
+import { AppLayout } from './layouts/AppLayout';
+import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
+import { SetupPage } from './pages/SetupPage';
+import { LoginRoute, RequireAuth, SetupRoute } from './routes/guards';
+import { useSession } from './stores/session';
+
+/** Carga el estado de la sesión antes de mostrar cualquier pantalla. */
+function Bootstrap() {
+  const status = useSession((s) => s.status);
+  const error = useSession((s) => s.error);
+  const bootstrap = useSession((s) => s.bootstrap);
+
+  useEffect(() => {
+    void bootstrap();
+  }, [bootstrap]);
+
+  if (status === 'loading') return <Spin fullscreen />;
+  if (status === 'error') {
+    return (
+      <Result
+        status="error"
+        title="No se pudo cargar Aldebaran"
+        subTitle={error}
+        extra={<Button onClick={() => void bootstrap()}>Reintentar</Button>}
+      />
+    );
+  }
+  return <Outlet />;
+}
+
+const router = createBrowserRouter([
+  {
+    element: <Bootstrap />,
+    children: [
+      { path: '/setup', element: <SetupRoute><SetupPage /></SetupRoute> },
+      { path: '/login', element: <LoginRoute><LoginPage /></LoginRoute> },
+      {
+        path: '/',
+        element: <RequireAuth><AppLayout /></RequireAuth>,
+        children: [{ index: true, element: <HomePage /> }],
+      },
+      { path: '*', element: <Navigate to="/" replace /> },
+    ],
+  },
+]);
+
 export function App() {
-  return <h1>Aldebaran</h1>;
+  return <RouterProvider router={router} />;
 }

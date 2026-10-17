@@ -104,7 +104,7 @@ describe('validaciones comunes', () => {
     expect(loadConfig({ MOCK_MODE: 'true', PORT: '8080' }, ROOT).port).toBe(8080);
   });
 
-  it.each(['30-71111111-1', '3071111111', 'abcdefghijk'])('rechaza ARCA_CUIT=%s', (cuit) => {
+  it.each(['30-71111111-1', '3071111111', 'abcdefghijk', '30711111118'])('rechaza ARCA_CUIT=%s', (cuit) => {
     expect(() => loadConfig({ ...REAL_ENV, ARCA_CUIT: cuit }, ROOT)).toThrow(/ARCA_CUIT/);
     expect(() => loadConfig({ MOCK_MODE: 'true', ARCA_CUIT: cuit }, ROOT)).toThrow(/ARCA_CUIT/);
   });

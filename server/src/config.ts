@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isValidCuit } from './domain/cuit.js';
 
 /** Zona horaria de todas las fechas y horarios del sistema (RNF-12). */
 export const TIMEZONE = 'America/Argentina/Buenos_Aires';
@@ -68,7 +69,7 @@ export function loadConfig(env: Env = process.env, rootDir: string = ROOT_DIR): 
 
   if (mockMode) {
     const cuit = read(env, 'ARCA_CUIT') ?? MOCK_ARCA_CUIT;
-    assertCuitFormat(cuit);
+    assertValidCuit(cuit);
     return {
       mockMode,
       port,
@@ -104,7 +105,7 @@ export function loadConfig(env: Env = process.env, rootDir: string = ROOT_DIR): 
   }
 
   const cuit = read(env, 'ARCA_CUIT')!;
-  assertCuitFormat(cuit);
+  assertValidCuit(cuit);
 
   return {
     mockMode,
@@ -133,8 +134,10 @@ function parsePort(value: string | undefined): number {
   return port;
 }
 
-function assertCuitFormat(cuit: string): void {
-  if (!/^\d{11}$/.test(cuit)) {
-    throw new ConfigError(`ARCA_CUIT debe tener 11 dígitos, sin guiones (recibido: "${cuit}").`);
+function assertValidCuit(cuit: string): void {
+  if (!isValidCuit(cuit)) {
+    throw new ConfigError(
+      `ARCA_CUIT debe ser un CUIT válido de 11 dígitos, sin guiones (recibido: "${cuit}").`,
+    );
   }
 }

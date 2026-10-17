@@ -1,4 +1,4 @@
-import type { Server } from 'node:http';
+import { request as httpRequest, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../app.js';
 import { openDatabase, type Db } from '../db/index.js';
@@ -21,29 +21,47 @@ export interface TestApp {
 }
 
 /** Levanta la app con una base en memoria en un puerto libre. */
-export async function startTestApp(options: { now?: () => Date } = {}): Promise<TestApp> {
+export async function startTestApp(
+  options: { now?: () => Date; mockMode?: boolean } = {},
+): Promise<TestApp> {
   const database = openDatabase(':memory:');
-  const server: Server = createApp({ db: database.db, now: options.now }).listen(0);
+  const server: Server = createApp({ db: database.db, ...options }).listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
-  const baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const { port } = server.address() as AddressInfo;
 
   return {
     db: database.db,
-    async request(method, path, { body, rawBody, cookie } = {}) {
+    request(method, path, { body, rawBody, cookie } = {}) {
+      const payload = rawBody ?? (body === undefined ? undefined : JSON.stringify(body));
       const headers: Record<string, string> = {};
-      if (body !== undefined || rawBody !== undefined) headers['content-type'] = 'application/json';
+      if (payload !== undefined) headers['content-type'] = 'application/json';
       if (cookie) headers.cookie = `aldebaran_session=${cookie}`;
 
-      const res = await fetch(`${baseUrl}${path}`, {
-        method,
-        headers,
-        body: rawBody ?? (body === undefined ? undefined : JSON.stringify(body)),
+      // agent: false → una conexión por request. Con keep-alive, una conexión de un
+      // test anterior podía quedar apuntando a un server ya cerrado en el mismo puerto.
+      return new Promise((resolve, reject) => {
+        const req = httpRequest(
+          { host: '127.0.0.1', port, method, path, headers, agent: false },
+          (res) => {
+            let text = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk: string) => (text += chunk));
+            res.on('end', () => {
+              const setCookie = res.headers['set-cookie']?.find((c) =>
+                c.startsWith('aldebaran_session='),
+              );
+              const sessionCookie = setCookie?.split(';')[0]?.split('=')[1] || undefined;
+              resolve({
+                status: res.statusCode ?? 0,
+                body: text ? JSON.parse(text) : null,
+                sessionCookie,
+              });
+            });
+          },
+        );
+        req.on('error', reject);
+        req.end(payload);
       });
-
-      const setCookie = res.headers.getSetCookie().find((c) => c.startsWith('aldebaran_session='));
-      const sessionCookie = setCookie?.split(';')[0]?.split('=')[1] || undefined;
-      const text = await res.text();
-      return { status: res.status, body: text ? JSON.parse(text) : null, sessionCookie };
     },
     async close() {
       await new Promise<void>((resolve) => server.close(() => resolve()));

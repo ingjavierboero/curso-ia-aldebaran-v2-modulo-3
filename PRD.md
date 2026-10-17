@@ -96,8 +96,8 @@ Para el MVP, la facturación se genera contra el **ambiente de homologación de 
 - RF-33: Una vez cambiada la contraseña con el token, el sistema debe redirigir al inicio de sesión.
 
 ### Clientes
-- RF-34: El sistema debe permitir dar de alta un cliente con su razón social, CUIT, email de facturación y condición frente al IVA, todos obligatorios; el cliente queda Activo.
-- RF-35: El sistema debe permitir modificar la razón social, el CUIT, el email de facturación y la condición frente al IVA de un cliente.
+- RF-34: El sistema debe permitir dar de alta un cliente con su razón social, CUIT, domicilio, email de facturación y condición frente al IVA, todos obligatorios; el cliente queda Activo.
+- RF-35: El sistema debe permitir modificar la razón social, el CUIT, el domicilio, el email de facturación y la condición frente al IVA de un cliente.
 - RF-36: El sistema debe permitir dar de baja un cliente, que pasa a estado Inactivo.
 - RF-37: El sistema debe permitir reactivar un cliente Inactivo, que pasa a estado Activo.
 - RF-38: El sistema debe admitir como condición frente al IVA de un cliente solo los valores que ARCA admite para el receptor de una Factura C: IVA Responsable Inscripto (1), IVA Sujeto Exento (4), Consumidor Final (5), Responsable Monotributo (6), Sujeto No Categorizado (7), Proveedor del Exterior (8), Cliente del Exterior (9), IVA Liberado – Ley N° 19.640 (10), Monotributista Social (13), IVA No Alcanzado (15) y Monotributo Trabajador Independiente Promovido (16).
@@ -159,7 +159,7 @@ Para el MVP, la facturación se genera contra el **ambiente de homologación de 
 - RF-90: Mientras el sistema facture en el ambiente de homologación de ARCA, el agente debe indicar en el PDF y en el email de cada factura que el comprobante fue emitido en homologación y no tiene validez fiscal.
 - RF-91: El sistema debe permitir a un Admin configurar los datos de la empresa emisora: razón social, domicilio comercial, condición frente al IVA, número de ingresos brutos y fecha de inicio de actividades.
 - RF-92: El agente debe incluir en el PDF de cada factura los datos de la empresa emisora configurados (RF-91) y su CUIT.
-- RF-93: El agente debe adjuntar a todo email de factura (RF-84 y RF-177) un archivo PDF con la razón social, el CUIT y la condición frente al IVA del cliente, el tipo de comprobante, el punto de venta, el número, la fecha de emisión, el período facturado y su período de servicio, la fecha de vencimiento del pago, el detalle de cada cuota mensual, el total en pesos, el CAE y su fecha de vencimiento, y la cotización usada cuando algún ítem se facturó en dólares.
+- RF-93: El agente debe adjuntar a todo email de factura (RF-84 y RF-177) un archivo PDF con la razón social, el CUIT, el domicilio y la condición frente al IVA del cliente, el tipo de comprobante, el punto de venta, el número, la fecha de emisión, el período facturado y su período de servicio, la fecha de vencimiento del pago, el detalle de cada cuota mensual, el total en pesos, el CAE y su fecha de vencimiento, y la cotización usada cuando algún ítem se facturó en dólares.
 - RF-94: El sistema no debe generar facturas a un cliente que no tiene ningún producto Activo asignado.
 - RF-95: El sistema no debe generar facturas a un cliente Inactivo.
 - RF-96: El sistema no debe enviar ningún email a un cliente Inactivo.
@@ -237,6 +237,7 @@ Reglas que acompañan a las anteriores:
 
 ### Listados, historial y reportes
 - RF-158: El sistema debe mostrar el listado de clientes, Activos e Inactivos, con su razón social, CUIT, email de facturación, condición frente al IVA, estado y deuda vigente total.
+- RF-214: El sistema debe mostrar el detalle de un cliente al seleccionarlo en el listado de clientes, con su razón social, CUIT, domicilio, email de facturación, condición frente al IVA, estado y fecha de alta.
 - RF-159: El sistema debe mostrar el listado de productos, Activos e Inactivos, con su nombre, precio, moneda y estado.
 - RF-160: El sistema debe mostrar el listado de facturas con su punto de venta y número, la razón social del cliente, el período, el total en pesos, la fecha de vencimiento del pago y el estado.
 - RF-161: El sistema debe mostrar a un Admin el listado de usuarios, Activos e Inactivos, con su nombre, email, perfil y estado.
@@ -353,7 +354,7 @@ Reglas que acompañan a las anteriores:
 - AC-33 (RF-33): Dada la pantalla de cambio de contraseña abierta con un token válido, cuando el usuario confirma una nueva contraseña, entonces la contraseña queda cambiada, el sistema redirige al inicio de sesión y el usuario puede iniciar sesión con la nueva contraseña.
 
 ### Clientes
-- AC-34 (RF-34): Dado un Admin o Editor autenticado, cuando completa el alta de un cliente con sus datos obligatorios (razón social, CUIT, email de facturación, condición frente al IVA), entonces el cliente queda visible en el listado con estado Activo y disponible para asignarle productos; y cuando intenta darlo de alta sin razón social, sin CUIT o sin email de facturación, el sistema rechaza el alta.
+- AC-34 (RF-34): Dado un Admin o Editor autenticado, cuando completa el alta de un cliente con sus datos obligatorios (razón social, CUIT, domicilio, email de facturación, condición frente al IVA), entonces el cliente queda visible en el listado con estado Activo y disponible para asignarle productos; y cuando intenta darlo de alta sin razón social, sin CUIT, sin domicilio o sin email de facturación, el sistema rechaza el alta.
 - AC-35 (RF-35): Dado un cliente Activo, cuando un Admin o Editor modifica su email de facturación, entonces los emails siguientes a ese cliente se envían a la nueva dirección y los emails recibidos desde la dirección anterior dejan de reconocerse como del cliente.
 - AC-36 (RF-35): Dado un cliente Activo con facturas ya emitidas, cuando un Admin o Editor modifica su razón social, entonces la siguiente factura muestra la razón social nueva y las facturas ya emitidas no cambian.
 - AC-37 (RF-35): Dado un cliente Activo con deuda vigente que no está en revisión, cuando un Admin o Editor modifica su CUIT y después llega un comprobante clasificado como "si" con el CUIT anterior, entonces sus facturas adeudadas pasan a Revisión manual con el motivo "CUIT no coincide".
@@ -407,7 +408,7 @@ Reglas que acompañan a las anteriores:
 - AC-81 (RF-88, RF-89): Dado un cliente con una factura de septiembre de $15.000 en Revisión manual, cuando el proceso de facturación genera su factura de octubre de $201.600, entonces el email informa esa factura con su número, período, importe y vencimiento, una deuda pendiente de $216.600 que incluye facturas anteriores, y le pide responder adjuntando el comprobante de pago.
 - AC-82 (RF-90): Dado el sistema facturando en homologación de ARCA, cuando se envía el email de una factura, entonces tanto el PDF como el cuerpo del email indican que el comprobante fue emitido en homologación y no tiene validez fiscal.
 - AC-83 (RF-91, RF-92): Dado un Admin autenticado, cuando configura la razón social, el domicilio comercial, la condición frente al IVA, el número de ingresos brutos y la fecha de inicio de actividades de la empresa emisora, entonces los datos quedan guardados y el PDF de la siguiente factura los incluye junto con el CUIT del emisor.
-- AC-84 (RF-84, RF-93): Dado que el proceso de facturación generó una factura para un cliente, cuando se envía el email de la factura, entonces el email lleva un archivo PDF adjunto con la razón social, el CUIT y la condición frente al IVA del cliente, Factura C, el punto de venta, el número, la fecha de emisión, el período con su período de servicio, el vencimiento del pago, el detalle de cada cuota, el total en pesos, el CAE y su vencimiento; y, si algún ítem estaba en dólares, la cotización usada.
+- AC-84 (RF-84, RF-93): Dado que el proceso de facturación generó una factura para un cliente, cuando se envía el email de la factura, entonces el email lleva un archivo PDF adjunto con la razón social, el CUIT, el domicilio y la condición frente al IVA del cliente, Factura C, el punto de venta, el número, la fecha de emisión, el período con su período de servicio, el vencimiento del pago, el detalle de cada cuota, el total en pesos, el CAE y su vencimiento; y, si algún ítem estaba en dólares, la cotización usada.
 - AC-85 (RF-94): Dado un cliente Activo sin ningún producto asignado, cuando se ejecuta el proceso de facturación del día 15, entonces no se genera factura ni se envía email de factura para ese cliente.
 - AC-86 (RF-94): Dado un cliente Activo cuyo único producto asignado está Inactivo, cuando se ejecuta el proceso de facturación del día 15, entonces no se genera factura para ese cliente.
 - AC-87 (RF-95): Dado un cliente Inactivo con productos asignados, cuando se ejecuta el proceso de facturación del día 15, entonces no se genera factura para ese cliente.
@@ -501,6 +502,7 @@ AC-141 y AC-142 verifican una regla de resguardo que el flujo normal no produce 
 
 ### Listados, historial y reportes
 - AC-165 (RF-158): Dados un cliente Activo con deuda vigente de $22.000 y un cliente Inactivo sin deuda, cuando un usuario autenticado abre el listado de clientes, entonces ve ambos clientes con su razón social, CUIT, email de facturación, condición frente al IVA, estado y deuda vigente total ($22.000 y $0).
+- AC-236 (RF-214): Dado un cliente registrado, cuando un usuario autenticado de cualquier perfil hace click en su fila del listado de clientes, entonces ve el detalle del cliente con su razón social, CUIT, domicilio, email de facturación, condición frente al IVA, estado y fecha de alta.
 - AC-166 (RF-159): Dados un producto Activo en pesos y un producto Inactivo en dólares, cuando un usuario autenticado abre el listado de productos, entonces ve ambos con su nombre, precio, moneda y estado.
 - AC-167 (RF-160): Dadas facturas en los cuatro estados, cuando un usuario autenticado abre el listado de facturas, entonces ve todas con su punto de venta y número, la razón social del cliente, el período, el total en pesos, el vencimiento del pago y el estado.
 - AC-168 (RF-161): Dados un usuario Activo y uno Inactivo, cuando un Admin abre el listado de usuarios, entonces ve ambos con su nombre, email, perfil y estado.

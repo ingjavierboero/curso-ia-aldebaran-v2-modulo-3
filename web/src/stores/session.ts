@@ -74,3 +74,8 @@ export const useSession = create<SessionState>()((set, get) => ({
 }));
 
 setUnauthorizedHandler(() => useSession.getState().clearUser());
+
+/** RF-10, RF-13: Admin y Editor modifican datos; Consulta solo los ve. */
+export function useCanEdit(): boolean {
+  return useSession((s) => s.user !== null && s.user.role !== 'consulta');
+}

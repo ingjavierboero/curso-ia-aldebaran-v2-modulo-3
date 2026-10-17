@@ -2,6 +2,8 @@ import { Button, Result, Spin } from 'antd';
 import { useEffect } from 'react';
 import { createBrowserRouter, Navigate, Outlet, RouterProvider } from 'react-router';
 import { AppLayout } from './layouts/AppLayout';
+import { ClientDetailPage } from './pages/clients/ClientDetailPage';
+import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { SetupPage } from './pages/SetupPage';
@@ -41,7 +43,11 @@ const router = createBrowserRouter([
       {
         path: '/',
         element: <RequireAuth><AppLayout /></RequireAuth>,
-        children: [{ index: true, element: <HomePage /> }],
+        children: [
+          { index: true, element: <HomePage /> },
+          { path: 'clientes', element: <ClientsPage /> },
+          { path: 'clientes/:id', element: <ClientDetailPage /> },
+        ],
       },
       { path: '*', element: <Navigate to="/" replace /> },
     ],

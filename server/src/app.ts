@@ -1,7 +1,7 @@
 import cookieParser from 'cookie-parser';
 import express, { type ErrorRequestHandler } from 'express';
 import { requireAuth } from './auth/middleware.js';
-import { authRoutes, publicAuthRoutes } from './auth/routes.js';
+import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
 import type { Db } from './db/index.js';
 
 export interface AppContext {
@@ -10,12 +10,14 @@ export interface AppContext {
   now: () => Date;
   /** Cookies solo por HTTPS (producción). */
   secureCookies: boolean;
+  mockMode: boolean;
 }
 
 export interface AppOptions {
   db: Db;
   now?: () => Date;
   secureCookies?: boolean;
+  mockMode?: boolean;
 }
 
 export function createApp(options: AppOptions) {
@@ -23,6 +25,7 @@ export function createApp(options: AppOptions) {
     db: options.db,
     now: options.now ?? (() => new Date()),
     secureCookies: options.secureCookies ?? false,
+    mockMode: options.mockMode ?? false,
   };
 
   const app = express();
@@ -32,6 +35,11 @@ export function createApp(options: AppOptions) {
   // --- Rutas públicas (RF-01) ---
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok' });
+  });
+  // Lo que la web necesita antes de iniciar sesión: el indicador de modo mock
+  // (RF-209) y si tiene que mostrar el registro del primer Admin (RF-04).
+  app.get('/api/app-info', (_req, res) => {
+    res.json({ mockMode: ctx.mockMode, needsSetup: !hasUsers(ctx) });
   });
   app.use('/api/auth', publicAuthRoutes(ctx));
 

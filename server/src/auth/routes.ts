@@ -30,7 +30,7 @@ const loginSchema = z.object({
 
 const INVALID_CREDENTIALS = 'Email o contraseña incorrectos.';
 
-function hasUsers(ctx: AppContext): boolean {
+export function hasUsers(ctx: AppContext): boolean {
   const [row] = ctx.db.select({ total: count() }).from(users).all();
   return (row?.total ?? 0) > 0;
 }
@@ -48,11 +48,6 @@ export function publicAuthRoutes(ctx: AppContext): Router {
   const startSession = (res: Response, userId: number) => {
     res.cookie(SESSION_COOKIE, createSession(ctx.db, userId, ctx.now()), cookieOptions);
   };
-
-  // RF-04: el front muestra el registro del primer Admin mientras no haya usuarios.
-  router.get('/setup', (_req, res) => {
-    res.json({ needsSetup: !hasUsers(ctx) });
-  });
 
   // RF-04, RF-05: registro del primer Admin, solo con la base sin usuarios.
   router.post('/setup', async (req, res) => {

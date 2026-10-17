@@ -33,11 +33,11 @@ async function login(email: string, password: string) {
 describe('registro del primer Admin', () => {
   it('se ofrece mientras no hay usuarios y deja de ofrecerse después (RF-04)', async () => {
     app = await startTestApp();
-    expect((await app.request('GET', '/api/auth/setup')).body).toEqual({ needsSetup: true });
+    expect((await app.request('GET', '/api/app-info')).body.needsSetup).toBe(true);
 
     await registerAdmin();
 
-    expect((await app.request('GET', '/api/auth/setup')).body).toEqual({ needsSetup: false });
+    expect((await app.request('GET', '/api/app-info')).body.needsSetup).toBe(false);
   });
 
   it('rechaza 7 caracteres y con 8 crea un Admin Activo que puede iniciar sesión (AC-03)', async () => {

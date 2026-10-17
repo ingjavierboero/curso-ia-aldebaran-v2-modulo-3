@@ -313,6 +313,7 @@ Reglas que acompañan a las anteriores:
 - RNF-12: Todas las fechas y horarios del sistema (día 15, hora de facturación, último día del mes, hora de recordatorios, vencimiento de sesión y de tokens de recuperación) se rigen por la zona horaria America/Argentina/Buenos_Aires.
 - RNF-13: Todos los montos (precios de productos, ítems y totales de factura, montos extraídos de comprobantes y cotizaciones) se registran con precisión de centavos, y la coincidencia de monto (RF-134 a RF-137) se evalúa al centavo exacto, sin redondeos. La única operación que redondea es la conversión de dólares a pesos (RF-64). Si el monto extraído de algún comprobante del email es igual o menor a cero, o tiene fracción de centavo, el email no tiene ninguna coincidencia de monto.
 - RNF-14: La clasificación del LLM (RF-119), medida sobre el set de prueba de AC-109 a AC-111 (al menos 20 adjuntos por clase), debe acertar en al menos el 95 % de los adjuntos de cada clase ("si", "no" y "dudoso"), y ningún comprobante legible debe clasificarse como "no".
+- RNF-15: La interfaz debe ofrecer un tema claro y uno oscuro. Por defecto sigue la preferencia de tema del sistema operativo; el usuario puede elegir claro, oscuro o el del sistema desde el header de cualquier pantalla, y su elección se recuerda en ese navegador.
 
 ## Criterios de Aceptación
 
@@ -582,6 +583,9 @@ AC-232 a AC-234 son pruebas de rendimiento: se verifican fuera de la suite de te
 - AC-232 (RNF-01): Dado un set de al menos 100 emails de respuesta con adjunto, cuando el agente los procesa con el LLM real, entonces el p95 del tiempo entre la detección de cada email y el registro de su resultado es menor a 60 s.
 - AC-233 (RNF-03, RNF-05): Dados 50 clientes Activos, cada uno con 2 productos asignados de un catálogo de 10 productos, cuando el proceso de facturación se ejecuta el día 15, entonces las 50 facturas quedan generadas en el ambiente de homologación de ARCA y sus 50 emails enviados en 20 minutos o menos desde el inicio del proceso.
 - AC-234 (RNF-04, RNF-06): Dados 50 clientes Activos con deuda vigente que no están en revisión, cuando el proceso de recordatorios se ejecuta el último día del mes, entonces los 50 recordatorios quedan enviados en 20 minutos o menos desde el inicio del proceso.
+
+### Interfaz
+- AC-235 (RNF-15): Dado un navegador con el sistema operativo en tema oscuro y sin ninguna elección guardada, cuando un visitante abre cualquier pantalla, entonces la ve en tema oscuro; cuando elige el tema claro desde el header, la interfaz pasa a tema claro; y al recargar la página o volver a iniciar sesión en ese navegador, sigue en tema claro.
 
 ## Fuera de Alcance
 - Facturación real/productiva contra ARCA: en este MVP se factura contra el ambiente de homologación de ARCA; la emisión de comprobantes fiscales válidos en el ambiente productivo queda fuera de alcance y se evaluará en una fase posterior.

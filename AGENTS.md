@@ -18,6 +18,8 @@ se las envía por email y valida con un LLM los comprobantes de pago que respond
 ```bash
 npm install        # instala todos los workspaces
 npm run dev        # levanta server + web
+npm run dev:mock   # levanta server + web en modo mock, sin credenciales (http://localhost:5173)
+npm run db:reset:mock  # borra la base del modo mock (data/aldebaran-mock.db) para empezar de cero
 npm run test       # corre toda la suite (Vitest)
 ```
 Variables de entorno (`.env`, nunca commiteado; plantilla en `.env.example`):

@@ -4,6 +4,7 @@ import { requireAuth } from './auth/middleware.js';
 import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
 import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
+import { productRoutes } from './products/routes.js';
 
 export interface AppContext {
   db: Db;
@@ -48,6 +49,7 @@ export function createApp(options: AppOptions) {
   app.use('/api', requireAuth(ctx));
   app.use('/api/auth', authRoutes(ctx));
   app.use('/api/clients', clientRoutes(ctx));
+  app.use('/api/products', productRoutes(ctx));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'No encontrado.' });

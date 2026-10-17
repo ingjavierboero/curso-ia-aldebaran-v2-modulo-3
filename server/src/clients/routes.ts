@@ -4,16 +4,12 @@ import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import { currentUser, requireRole } from '../auth/middleware.js';
 import type { Db } from '../db/index.js';
-import {
-  ACTIVE_STATUSES,
-  clientEvents,
-  clients,
-  IVA_CONDITION_CODES,
-  type ClientEventType,
-  type IvaCondition,
-} from '../db/schema.js';
+import { ACTIVE_STATUSES, clients, IVA_CONDITION_CODES, type IvaCondition } from '../db/schema.js';
 import { isValidCuit, normalizeCuit } from '../domain/cuit.js';
 import { parseBody } from '../http/validation.js';
+import { assignmentRoutes } from './assignments.js';
+import { findClient } from './lookup.js';
+import { recordClientEvent } from './events.js';
 
 const clientSchema = z.object({
   businessName: z.string().trim().min(1, 'La razón social es obligatoria.'),
@@ -88,7 +84,7 @@ export function clientRoutes(ctx: AppContext): Router {
     const user = currentUser(req);
     const client = ctx.db.transaction((tx) => {
       const created = tx.insert(clients).values({ ...data, status: 'activo' }).returning().get();
-      recordEvent(tx, created.id, 'alta', user.id, null);
+      recordClientEvent(tx, created.id, 'alta', user.id, null);
       return created;
     });
     res.status(201).json({ client });
@@ -113,7 +109,7 @@ export function clientRoutes(ctx: AppContext): Router {
     const user = currentUser(req);
     const client = ctx.db.transaction((tx) => {
       const updated = tx.update(clients).set(data).where(eq(clients.id, existing.id)).returning().get();
-      recordEvent(tx, existing.id, 'modificacion', user.id, { changes });
+      recordClientEvent(tx, existing.id, 'modificacion', user.id, { changes });
       return updated;
     });
     res.json({ client });
@@ -129,6 +125,8 @@ export function clientRoutes(ctx: AppContext): Router {
     changeStatus(ctx, req, res, 'activo');
   });
 
+  router.use('/:id/products', assignmentRoutes(ctx));
+
   return router;
 }
 
@@ -138,15 +136,6 @@ function searchCondition(q: string): SQL {
   const byName = sql`lower(${clients.businessName}) like ${`%${escaped}%`} escape '\\'`;
   const digits = normalizeCuit(q);
   return digits ? or(byName, sql`${clients.cuit} like ${`%${digits}%`}`)! : byName;
-}
-
-function findClient(db: Db, req: Request, res: Response) {
-  const id = Number(req.params.id);
-  const client = Number.isInteger(id) && id > 0
-    ? db.select().from(clients).where(eq(clients.id, id)).get()
-    : undefined;
-  if (!client) res.status(404).json({ error: 'El cliente no existe.' });
-  return client;
 }
 
 /** RF-40, RF-41: responde 409 si el CUIT o el email ya los tiene otro cliente. */
@@ -182,18 +171,8 @@ function changeStatus(ctx: AppContext, req: Request, res: Response, status: 'act
   const user = currentUser(req);
   const client = ctx.db.transaction((tx) => {
     const updated = tx.update(clients).set({ status }).where(eq(clients.id, existing.id)).returning().get();
-    recordEvent(tx, existing.id, status === 'activo' ? 'reactivacion' : 'baja', user.id, null);
+    recordClientEvent(tx, existing.id, status === 'activo' ? 'reactivacion' : 'baja', user.id, null);
     return updated;
   });
   res.json({ client });
-}
-
-function recordEvent(
-  db: Pick<Db, 'insert'>,
-  clientId: number,
-  type: ClientEventType,
-  userId: number | null,
-  data: Record<string, unknown> | null,
-) {
-  db.insert(clientEvents).values({ clientId, type, userId, data }).run();
 }

@@ -3,6 +3,7 @@ import {
   check,
   index,
   integer,
+  primaryKey,
   type SQLiteColumn,
   sqliteTable,
   text,
@@ -119,7 +120,14 @@ export const clients = sqliteTable(
   ],
 );
 
-export const CLIENT_EVENT_TYPES = ['alta', 'modificacion', 'baja', 'reactivacion'] as const;
+export const CLIENT_EVENT_TYPES = [
+  'alta',
+  'modificacion',
+  'baja',
+  'reactivacion',
+  'asignacion_producto',
+  'desasignacion_producto',
+] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
 
 /** Historial del cliente (RF-163). Cada feature suma sus tipos de evento. */
@@ -140,4 +148,46 @@ export const clientEvents = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (t) => [index('client_events_client_id_idx').on(t.clientId, t.createdAt)],
+);
+
+export const CURRENCIES = ['ARS', 'USD'] as const;
+export type Currency = (typeof CURRENCIES)[number];
+
+export const products = sqliteTable(
+  'products',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    /** Precio de la cuota mensual en centavos de su moneda (RNF-13). */
+    priceCents: integer('price_cents').notNull(),
+    currency: text('currency', { enum: CURRENCIES }).notNull(),
+    status: text('status', { enum: ACTIVE_STATUSES }).notNull().default('activo'),
+    ...timestamps,
+  },
+  (t) => [
+    // RF-44: el precio es mayor a cero.
+    check('products_price_check', sql`${t.priceCents} > 0`),
+    check('products_currency_check', inList(t.currency, CURRENCIES)),
+    check('products_status_check', inList(t.status, ACTIVE_STATUSES)),
+  ],
+);
+
+/** Productos asignados a cada cliente (RF-49, RF-50). */
+export const clientProducts = sqliteTable(
+  'client_products',
+  {
+    clientId: integer('client_id')
+      .notNull()
+      .references(() => clients.id),
+    productId: integer('product_id')
+      .notNull()
+      .references(() => products.id),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [
+    primaryKey({ columns: [t.clientId, t.productId] }),
+    index('client_products_product_id_idx').on(t.productId),
+  ],
 );

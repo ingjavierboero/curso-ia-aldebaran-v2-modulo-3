@@ -5,6 +5,7 @@ import styled from 'styled-components';
 import { ROLE_LABELS } from '../api/types';
 import { useSession } from '../stores/session';
 import { MockModeIndicator } from './MockModeIndicator';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 const Header = styled(Layout.Header)`
   display: flex;
@@ -56,6 +57,7 @@ export function AppHeader() {
       <Brand>Aldebaran</Brand>
       <MockModeIndicator />
       <Spacer />
+      <ThemeSwitcher />
       {user && (
         <Dropdown
           trigger={['click']}

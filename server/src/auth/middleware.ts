@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import type { AppContext } from '../app.js';
+import type { UserRole } from '../db/schema.js';
 import { resolveSession, SESSION_COOKIE, type AuthUser } from './sessions.js';
 
 declare module 'express-serve-static-core' {
@@ -22,6 +23,17 @@ export function requireAuth(ctx: AppContext) {
     }
 
     req.user = user;
+    next();
+  };
+}
+
+/** Rechaza con 403 a los perfiles que no pueden hacer la acción (RF-09 a RF-13). */
+export function requireRole(...roles: UserRole[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user || !roles.includes(req.user.role)) {
+      res.status(403).json({ error: 'Tu perfil no permite realizar esta acción.' });
+      return;
+    }
     next();
   };
 }

@@ -2,6 +2,7 @@ import cookieParser from 'cookie-parser';
 import express, { type ErrorRequestHandler } from 'express';
 import { requireAuth } from './auth/middleware.js';
 import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
+import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
 
 export interface AppContext {
@@ -46,6 +47,7 @@ export function createApp(options: AppOptions) {
   // --- A partir de acá, todo exige sesión ---
   app.use('/api', requireAuth(ctx));
   app.use('/api/auth', authRoutes(ctx));
+  app.use('/api/clients', clientRoutes(ctx));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'No encontrado.' });

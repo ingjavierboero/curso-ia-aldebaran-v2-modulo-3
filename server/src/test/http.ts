@@ -1,7 +1,9 @@
 import { request as httpRequest, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../app.js';
+import { hashPassword } from '../auth/password.js';
 import { openDatabase, type Db } from '../db/index.js';
+import { users, type UserRole } from '../db/schema.js';
 
 export interface TestResponse {
   status: number;
@@ -17,8 +19,13 @@ export interface TestApp {
     path: string,
     options?: { body?: unknown; rawBody?: string; cookie?: string },
   ) => Promise<TestResponse>;
+  /** Crea un usuario Activo con ese perfil, inicia su sesión y devuelve la cookie. */
+  loginAs: (role: UserRole) => Promise<string>;
   close: () => Promise<void>;
 }
+
+const TEST_PASSWORD = '12345678';
+let testPasswordHash: Promise<string> | null = null;
 
 /** Levanta la app con una base en memoria en un puerto libre. */
 export async function startTestApp(
@@ -62,6 +69,19 @@ export async function startTestApp(
         req.on('error', reject);
         req.end(payload);
       });
+    },
+    async loginAs(role) {
+      testPasswordHash ??= hashPassword(TEST_PASSWORD);
+      const email = `${role}-${Math.random().toString(36).slice(2)}@aldebaran.com`;
+      this.db
+        .insert(users)
+        .values({ name: `Usuario ${role}`, email, role, passwordHash: await testPasswordHash })
+        .run();
+      const res = await this.request('POST', '/api/auth/login', {
+        body: { email, password: TEST_PASSWORD },
+      });
+      if (!res.sessionCookie) throw new Error(`No se pudo iniciar sesión como ${role}`);
+      return res.sessionCookie;
     },
     async close() {
       await new Promise<void>((resolve) => server.close(() => resolve()));

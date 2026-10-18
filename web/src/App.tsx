@@ -7,6 +7,7 @@ import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ProductsPage } from './pages/products/ProductsPage';
+import { SettingsPage } from './pages/settings/SettingsPage';
 import { SetupPage } from './pages/SetupPage';
 import { LoginRoute, RequireAuth, SetupRoute } from './routes/guards';
 import { useSession } from './stores/session';
@@ -49,6 +50,7 @@ const router = createBrowserRouter([
           { path: 'clientes', element: <ClientsPage /> },
           { path: 'clientes/:id', element: <ClientDetailPage /> },
           { path: 'productos', element: <ProductsPage /> },
+          { path: 'configuracion', element: <SettingsPage /> },
         ],
       },
       { path: '*', element: <Navigate to="/" replace /> },

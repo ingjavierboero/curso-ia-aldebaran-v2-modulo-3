@@ -1,4 +1,4 @@
-import { AppstoreOutlined, HomeOutlined, TeamOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, HomeOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
 import { Layout, Menu } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import styled from 'styled-components';
@@ -12,6 +12,7 @@ const MENU_ITEMS = [
   { key: '/', icon: <HomeOutlined />, label: 'Inicio' },
   { key: '/clientes', icon: <TeamOutlined />, label: 'Clientes' },
   { key: '/productos', icon: <AppstoreOutlined />, label: 'Productos' },
+  { key: '/configuracion', icon: <SettingOutlined />, label: 'Configuración' },
 ];
 
 /** Layout de las pantallas con sesión: header, menú lateral y contenido. */

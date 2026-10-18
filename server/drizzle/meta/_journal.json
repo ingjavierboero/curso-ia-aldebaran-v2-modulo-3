@@ -36,6 +36,13 @@
       "when": 1792201354819,
       "tag": "0004_cotizaciones",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792362090766,
+      "tag": "0005_arca",
+      "breakpoints": true
     }
   ]
 }

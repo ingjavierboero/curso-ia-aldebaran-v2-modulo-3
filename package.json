@@ -18,7 +18,8 @@
     "db:generate": "npm run db:generate -w server",
     "dev:mock": "MOCK_MODE=true npm run dev",
     "db:reset:mock": "rm -f data/aldebaran-mock.db data/aldebaran-mock.db-wal data/aldebaran-mock.db-shm",
-    "exchange:check": "npm run exchange:check -w server"
+    "exchange:check": "npm run exchange:check -w server",
+    "arca:check": "npm run arca:check -w server --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

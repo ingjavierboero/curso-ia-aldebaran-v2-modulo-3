@@ -207,3 +207,37 @@ export const exchangeRates = sqliteTable(
     index('exchange_rates_read_at_idx').on(t.readAt),
   ],
 );
+
+/**
+ * Ticket de acceso de WSAA vigente por servicio. Se guarda porque WSAA rechaza
+ * emitir uno nuevo mientras el anterior siga vigente (dura unas 12 h).
+ */
+export const arcaAccessTickets = sqliteTable('arca_access_tickets', {
+  service: text('service').primaryKey(),
+  token: text('token').notNull(),
+  sign: text('sign').notNull(),
+  expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+});
+
+/**
+ * Comprobantes autorizados por el ARCA simulado del modo mock (RF-186). Cumple el
+ * papel de la base de ARCA: numeración por punto de venta y consulta de comprobantes.
+ */
+export const mockArcaVouchers = sqliteTable(
+  'mock_arca_vouchers',
+  {
+    pointOfSale: integer('point_of_sale').notNull(),
+    voucherType: integer('voucher_type').notNull(),
+    number: integer('number').notNull(),
+    cae: text('cae').notNull(),
+    /** YYYY-MM-DD */
+    caeDueDate: text('cae_due_date').notNull(),
+    issueDate: text('issue_date').notNull(),
+    receiverCuit: text('receiver_cuit').notNull(),
+    totalCents: integer('total_cents').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [primaryKey({ columns: [t.pointOfSale, t.voucherType, t.number] })],
+);

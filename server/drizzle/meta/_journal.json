@@ -29,6 +29,13 @@
       "when": 1792200689538,
       "tag": "0003_productos",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792201354819,
+      "tag": "0004_cotizaciones",
+      "breakpoints": true
     }
   ]
 }

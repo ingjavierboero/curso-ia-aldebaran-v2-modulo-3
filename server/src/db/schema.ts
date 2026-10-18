@@ -191,3 +191,19 @@ export const clientProducts = sqliteTable(
     index('client_products_product_id_idx').on(t.productId),
   ],
 );
+
+/** RF-65: cada cotización del dólar blue venta leída, con su fuente y fecha de lectura. */
+export const exchangeRates = sqliteTable(
+  'exchange_rates',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** Pesos por dólar, en centavos (RNF-13): $1.555,50 → 155550. */
+    rateCents: integer('rate_cents').notNull(),
+    source: text('source').notNull(),
+    readAt: integer('read_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [
+    check('exchange_rates_rate_check', sql`${t.rateCents} > 0`),
+    index('exchange_rates_read_at_idx').on(t.readAt),
+  ],
+);

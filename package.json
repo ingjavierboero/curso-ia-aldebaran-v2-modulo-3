@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "db:generate": "npm run db:generate -w server",
     "dev:mock": "MOCK_MODE=true npm run dev",
-    "db:reset:mock": "rm -f data/aldebaran-mock.db data/aldebaran-mock.db-wal data/aldebaran-mock.db-shm"
+    "db:reset:mock": "rm -f data/aldebaran-mock.db data/aldebaran-mock.db-wal data/aldebaran-mock.db-shm",
+    "exchange:check": "npm run exchange:check -w server"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

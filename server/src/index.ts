@@ -28,6 +28,7 @@ const database = openDatabase(config.databasePath);
 const server = createApp({
   db: database.db,
   mockMode: config.mockMode,
+  issuerCuit: config.arca.cuit,
   secureCookies: process.env.NODE_ENV === 'production',
 }).listen(config.port, () => {
   const mode = config.mockMode ? 'modo mock: ARCA, LLM y email simulados' : 'modo real';

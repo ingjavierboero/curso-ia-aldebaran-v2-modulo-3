@@ -10,6 +10,9 @@ export interface TestResponse {
   body: any;
   /** Valor de la cookie de sesión que fijó la respuesta, si fijó alguna. */
   sessionCookie: string | undefined;
+  headers: import('node:http').IncomingHttpHeaders;
+  /** Cuerpo sin parsear (por ejemplo, un PDF). */
+  raw: Buffer;
 }
 
 export interface TestApp {
@@ -29,7 +32,7 @@ let testPasswordHash: Promise<string> | null = null;
 
 /** Levanta la app con una base en memoria en un puerto libre. */
 export async function startTestApp(
-  options: { now?: () => Date; mockMode?: boolean } = {},
+  options: { now?: () => Date; mockMode?: boolean; issuerCuit?: string } = {},
 ): Promise<TestApp> {
   const database = openDatabase(':memory:');
   const server: Server = createApp({ db: database.db, ...options }).listen(0, '127.0.0.1');
@@ -50,10 +53,12 @@ export async function startTestApp(
         const req = httpRequest(
           { host: '127.0.0.1', port, method, path, headers, agent: false },
           (res) => {
-            let text = '';
-            res.setEncoding('utf8');
-            res.on('data', (chunk: string) => (text += chunk));
+            const chunks: Buffer[] = [];
+            res.on('data', (chunk: Buffer) => chunks.push(chunk));
             res.on('end', () => {
+              const raw = Buffer.concat(chunks);
+              const isJson = String(res.headers['content-type'] ?? '').includes('json');
+              const text = isJson ? raw.toString('utf8') : '';
               const setCookie = res.headers['set-cookie']?.find((c) =>
                 c.startsWith('aldebaran_session='),
               );
@@ -62,6 +67,8 @@ export async function startTestApp(
                 status: res.statusCode ?? 0,
                 body: text ? JSON.parse(text) : null,
                 sessionCookie,
+                headers: res.headers,
+                raw,
               });
             });
           },

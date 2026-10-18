@@ -4,7 +4,9 @@ import { requireAuth } from './auth/middleware.js';
 import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
 import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
+import { invoiceRoutes } from './invoices/routes.js';
 import { productRoutes } from './products/routes.js';
+import { settingsRoutes } from './settings/routes.js';
 
 export interface AppContext {
   db: Db;
@@ -13,6 +15,8 @@ export interface AppContext {
   /** Cookies solo por HTTPS (producción). */
   secureCookies: boolean;
   mockMode: boolean;
+  /** CUIT del emisor (ARCA_CUIT). */
+  issuerCuit: string;
 }
 
 export interface AppOptions {
@@ -20,6 +24,7 @@ export interface AppOptions {
   now?: () => Date;
   secureCookies?: boolean;
   mockMode?: boolean;
+  issuerCuit?: string;
 }
 
 export function createApp(options: AppOptions) {
@@ -28,6 +33,7 @@ export function createApp(options: AppOptions) {
     now: options.now ?? (() => new Date()),
     secureCookies: options.secureCookies ?? false,
     mockMode: options.mockMode ?? false,
+    issuerCuit: options.issuerCuit ?? '20111111112',
   };
 
   const app = express();
@@ -50,6 +56,8 @@ export function createApp(options: AppOptions) {
   app.use('/api/auth', authRoutes(ctx));
   app.use('/api/clients', clientRoutes(ctx));
   app.use('/api/products', productRoutes(ctx));
+  app.use('/api/invoices', invoiceRoutes(ctx));
+  app.use('/api/settings', settingsRoutes(ctx));
 
   app.use('/api', (_req, res) => {
     res.status(404).json({ error: 'No encontrado.' });

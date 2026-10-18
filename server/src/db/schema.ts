@@ -127,6 +127,8 @@ export const CLIENT_EVENT_TYPES = [
   'reactivacion',
   'asignacion_producto',
   'desasignacion_producto',
+  'factura_generada',
+  'error_proceso',
 ] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
 
@@ -240,4 +242,181 @@ export const mockArcaVouchers = sqliteTable(
       .$defaultFn(() => new Date()),
   },
   (t) => [primaryKey({ columns: [t.pointOfSale, t.voucherType, t.number] })],
+);
+
+/**
+ * Configuración del sistema (RF-91 y "Configuración" en el PRD). Una sola fila (id 1)
+ * con los valores por defecto del PRD.
+ */
+export const settings = sqliteTable(
+  'settings',
+  {
+    id: integer('id').primaryKey(),
+    /** RF-99, RF-100: minutos entre revisiones de la casilla (5 a 60). */
+    mailboxIntervalMinutes: integer('mailbox_interval_minutes').notNull().default(15),
+    /** RF-51, RF-62: hora de facturación del día 15, "HH:MM". */
+    billingTime: text('billing_time').notNull().default('11:00'),
+    /** RF-149, RF-152: hora de los recordatorios del último día del mes, "HH:MM". */
+    reminderTime: text('reminder_time').notNull().default('11:00'),
+    /** RF-171, RF-172: reintentos de una operación automática (0 a 10). */
+    retryCount: integer('retry_count').notNull().default(3),
+    /** RF-171, RF-173: minutos de espera entre reintentos (1 a 60). */
+    retryWaitMinutes: integer('retry_wait_minutes').notNull().default(5),
+    /** RF-72, RF-73: punto de venta de ARCA (1 a 99999). */
+    pointOfSale: integer('point_of_sale').notNull().default(1),
+    // RF-91: datos de la empresa emisora.
+    issuerBusinessName: text('issuer_business_name'),
+    issuerAddress: text('issuer_address'),
+    issuerIvaCondition: text('issuer_iva_condition'),
+    issuerGrossIncomeNumber: text('issuer_gross_income_number'),
+    /** YYYY-MM-DD */
+    issuerActivityStartDate: text('issuer_activity_start_date'),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date())
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [check('settings_single_row', sql`${t.id} = 1`)],
+);
+
+/** Estado del proceso de facturación de cada período (RF-52 a RF-61). */
+export const billingPeriods = sqliteTable('billing_periods', {
+  /** "YYYY-MM" */
+  period: text('period').primaryKey(),
+  /** RF-54: cancelación por un Admin; null si no está cancelado. */
+  cancelledAt: integer('cancelled_at', { mode: 'timestamp_ms' }),
+  cancelledBy: integer('cancelled_by').references(() => users.id),
+  /** Inicio del proceso; null si nunca empezó. */
+  startedAt: integer('started_at', { mode: 'timestamp_ms' }),
+  /** Usuario que ejecutó "Facturar ahora"; null si lo inició el agente. */
+  startedBy: integer('started_by').references(() => users.id),
+  /** Se intentó facturar a todos los clientes facturables (RF-61). */
+  finishedAt: integer('finished_at', { mode: 'timestamp_ms' }),
+});
+
+export const INVOICE_STATUSES = ['pendiente_pago', 'pago_recibido', 'revision_manual', 'pagada'] as const;
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
+
+/**
+ * Factura C autorizada por ARCA. Guarda una copia de los datos del cliente y de la
+ * cotización al momento de facturar, para que las facturas emitidas no cambien.
+ */
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    clientId: integer('client_id')
+      .notNull()
+      .references(() => clients.id),
+    /** Período facturado, "YYYY-MM". */
+    period: text('period').notNull(),
+    status: text('status', { enum: INVOICE_STATUSES }).notNull().default('pendiente_pago'),
+    /** RF-138: motivo, solo mientras está en Revisión manual. */
+    reviewReason: text('review_reason'),
+    voucherType: integer('voucher_type').notNull(),
+    pointOfSale: integer('point_of_sale').notNull(),
+    number: integer('number').notNull(),
+    cae: text('cae').notNull(),
+    // Fechas en YYYY-MM-DD (hora de Argentina).
+    caeDueDate: text('cae_due_date').notNull(),
+    issueDate: text('issue_date').notNull(),
+    serviceFrom: text('service_from').notNull(),
+    serviceTo: text('service_to').notNull(),
+    paymentDueDate: text('payment_due_date').notNull(),
+    totalCents: integer('total_cents').notNull(),
+    // Copia del receptor al momento de facturar (RF-78).
+    clientBusinessName: text('client_business_name').notNull(),
+    clientCuit: text('client_cuit').notNull(),
+    clientAddress: text('client_address'),
+    clientIvaCondition: integer('client_iva_condition').notNull(),
+    // Cotización usada si algún ítem estaba en dólares (RF-63, RF-93).
+    exchangeRateId: integer('exchange_rate_id').references(() => exchangeRates.id),
+    exchangeRateCents: integer('exchange_rate_cents'),
+    exchangeRateSource: text('exchange_rate_source'),
+    exchangeRateReadAt: integer('exchange_rate_read_at', { mode: 'timestamp_ms' }),
+    /** RF-67: se usó la última cotización registrada porque no se pudo leer. */
+    exchangeRateFallback: integer('exchange_rate_fallback', { mode: 'boolean' }).notNull().default(false),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date())
+      .$onUpdateFn(() => new Date()),
+  },
+  (t) => [
+    index('invoices_client_period_idx').on(t.clientId, t.period),
+    index('invoices_status_idx').on(t.status),
+    uniqueIndex('invoices_voucher_unique').on(t.voucherType, t.pointOfSale, t.number),
+    check('invoices_status_check', inList(t.status, INVOICE_STATUSES)),
+    check('invoices_total_check', sql`${t.totalCents} > 0`),
+  ],
+);
+
+/** Detalle de cada cuota facturada (copia del producto al facturar, AC-45, AC-46). */
+export const invoiceItems = sqliteTable('invoice_items', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  invoiceId: integer('invoice_id')
+    .notNull()
+    .references(() => invoices.id),
+  productId: integer('product_id').references(() => products.id),
+  description: text('description').notNull(),
+  /** Moneda y precio originales del producto. */
+  currency: text('currency', { enum: CURRENCIES }).notNull(),
+  unitPriceCents: integer('unit_price_cents').notNull(),
+  /** Importe facturado en pesos (convertido si era en dólares, RF-64). */
+  amountCents: integer('amount_cents').notNull(),
+});
+
+/**
+ * Intento de generación en curso: el número que se le pidió a ARCA y el detalle que se
+ * facturó. Permite no emitir dos comprobantes para la misma factura si ARCA autorizó
+ * pero la respuesta no llegó (RF-75, RF-76). Se borra al registrar la factura.
+ */
+export const invoiceAttempts = sqliteTable(
+  'invoice_attempts',
+  {
+    clientId: integer('client_id')
+      .notNull()
+      .references(() => clients.id),
+    period: text('period').notNull(),
+    pointOfSale: integer('point_of_sale').notNull(),
+    pendingNumber: integer('pending_number').notNull(),
+    /** Ítems, total y cotización del intento (JSON). */
+    payload: text('payload', { mode: 'json' }).notNull(),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.clientId, t.period] })],
+);
+
+export const PROCESS_OPERATIONS = [
+  'generacion_factura',
+  'envio_factura',
+  'envio_recordatorio',
+  'revision_casilla',
+] as const;
+export type ProcessOperation = (typeof PROCESS_OPERATIONS)[number];
+
+/** RF-174: operación automática que siguió fallando después del último reintento. */
+export const processErrors = sqliteTable(
+  'process_errors',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    operation: text('operation', { enum: PROCESS_OPERATIONS }).notNull(),
+    status: text('status', { enum: ['pendiente', 'resuelto'] }).notNull().default('pendiente'),
+    clientId: integer('client_id').references(() => clients.id),
+    period: text('period'),
+    invoiceId: integer('invoice_id').references(() => invoices.id),
+    attempts: integer('attempts').notNull(),
+    lastError: text('last_error').notNull(),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    resolvedAt: integer('resolved_at', { mode: 'timestamp_ms' }),
+    resolvedBy: integer('resolved_by').references(() => users.id),
+  },
+  (t) => [
+    index('process_errors_status_idx').on(t.status),
+    check('process_errors_operation_check', inList(t.operation, PROCESS_OPERATIONS)),
+  ],
 );

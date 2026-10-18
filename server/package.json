@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "db:generate": "drizzle-kit generate",
     "exchange:check": "tsx src/exchange/check.ts",
-    "arca:check": "tsx src/arca/check.ts"
+    "arca:check": "tsx src/arca/check.ts",
+    "billing:run": "tsx src/billing/run.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

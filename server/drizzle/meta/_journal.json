@@ -43,6 +43,13 @@
       "when": 1792362090766,
       "tag": "0005_arca",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792362718446,
+      "tag": "0006_facturacion",
+      "breakpoints": true
     }
   ]
 }

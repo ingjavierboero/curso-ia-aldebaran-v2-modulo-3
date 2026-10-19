@@ -459,3 +459,49 @@ export const mockMailboxAttachments = sqliteTable('mock_mailbox_attachments', {
   inline: integer('inline', { mode: 'boolean' }).notNull().default(false),
   content: blob('content', { mode: 'buffer' }).notNull(),
 });
+
+/**
+ * Emails recibidos en la casilla del sistema (o en la simulada). Cada uno entra una sola
+ * vez, identificado por su Message-ID (RF-109). Los pasos siguientes completan a qué
+ * cliente corresponde y el resultado de su procesamiento.
+ */
+export const receivedEmails = sqliteTable(
+  'received_emails',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    messageId: text('message_id').notNull(),
+    /** Dirección del remitente en minúsculas (RF-112). */
+    from: text('from').notNull(),
+    fromName: text('from_name'),
+    subject: text('subject').notNull(),
+    text: text('text').notNull(),
+    receivedAt: integer('received_at', { mode: 'timestamp_ms' }).notNull(),
+    ingestedAt: integer('ingested_at', { mode: 'timestamp_ms' }).notNull(),
+  },
+  (t) => [uniqueIndex('received_emails_message_id_unique').on(t.messageId), index('received_emails_received_at_idx').on(t.receivedAt)],
+);
+
+export const receivedAttachments = sqliteTable('received_attachments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  emailId: integer('email_id')
+    .notNull()
+    .references(() => receivedEmails.id),
+  filename: text('filename').notNull(),
+  contentType: text('content_type').notNull(),
+  /** Imagen embebida en el cuerpo (RF-116). */
+  inline: integer('inline', { mode: 'boolean' }).notNull(),
+  /** Es un adjunto a procesar: imagen o PDF y no embebido (RF-116, RF-117). */
+  valid: integer('valid', { mode: 'boolean' }).notNull(),
+  content: blob('content', { mode: 'buffer' }).notNull(),
+});
+
+/** Estado de la revisión de la casilla (una sola fila). */
+export const mailboxState = sqliteTable(
+  'mailbox_state',
+  {
+    id: integer('id').primaryKey(),
+    /** Inicio de la última revisión exitosa: la siguiente lee desde acá (RF-101, RF-108). */
+    lastCheckStartedAt: integer('last_check_started_at', { mode: 'timestamp_ms' }),
+  },
+  (t) => [check('mailbox_state_single_row', sql`${t.id} = 1`)],
+);

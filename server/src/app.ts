@@ -7,6 +7,7 @@ import type { BillingRunner } from './billing/runner.js';
 import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
 import { invoiceRoutes } from './invoices/routes.js';
+import { mockMailboxRoutes } from './mailbox/mock-routes.js';
 import { productRoutes } from './products/routes.js';
 import { settingsRoutes } from './settings/routes.js';
 
@@ -19,6 +20,8 @@ export interface AppContext {
   mockMode: boolean;
   /** CUIT del emisor (ARCA_CUIT). */
   issuerCuit: string;
+  /** Casilla del sistema (GMAIL_USER o la simulada en modo mock). */
+  systemMailbox: string;
   billing: BillingRunner;
 }
 
@@ -28,6 +31,7 @@ export interface AppOptions {
   secureCookies?: boolean;
   mockMode?: boolean;
   issuerCuit?: string;
+  systemMailbox?: string;
   billing: BillingRunner;
 }
 
@@ -38,11 +42,13 @@ export function createApp(options: AppOptions) {
     secureCookies: options.secureCookies ?? false,
     mockMode: options.mockMode ?? false,
     issuerCuit: options.issuerCuit ?? '20111111112',
+    systemMailbox: options.systemMailbox ?? 'aldebaran-mock@gmail.com',
     billing: options.billing,
   };
 
   const app = express();
-  app.use(express.json());
+  // Los emails cargados en la casilla simulada traen sus adjuntos en base64.
+  app.use(express.json({ limit: '25mb' }));
   app.use(cookieParser());
 
   // --- Rutas públicas (RF-01) ---
@@ -63,6 +69,7 @@ export function createApp(options: AppOptions) {
   app.use('/api/products', productRoutes(ctx));
   app.use('/api/invoices', invoiceRoutes(ctx));
   app.use('/api/billing', billingRoutes(ctx));
+  app.use('/api/mock-mailbox', mockMailboxRoutes(ctx));
   app.use('/api/settings', settingsRoutes(ctx));
 
   app.use('/api', (_req, res) => {

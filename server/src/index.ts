@@ -38,6 +38,7 @@ const server = createApp({
   db: database.db,
   mockMode: config.mockMode,
   issuerCuit: config.arca.cuit,
+  systemMailbox: config.systemMailbox,
   billing,
   secureCookies: process.env.NODE_ENV === 'production',
 }).listen(config.port, () => {

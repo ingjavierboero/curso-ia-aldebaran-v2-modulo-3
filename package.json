@@ -21,7 +21,8 @@
     "exchange:check": "npm run exchange:check -w server",
     "arca:check": "npm run arca:check -w server --",
     "billing:run": "npm run billing:run -w server --",
-    "email:check": "npm run email:check -w server --"
+    "email:check": "npm run email:check -w server --",
+    "mailbox:check": "npm run mailbox:check -w server --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

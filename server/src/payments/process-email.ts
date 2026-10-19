@@ -1,9 +1,11 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { AttachmentClassifier } from '../classifier/index.js';
 import { classifyWithRetries, type ClassifyOutcome } from '../classifier/retry.js';
 import { recordClientEvent } from '../clients/events.js';
 import type { Db } from '../db/index.js';
-import { clients, receivedAttachments, receivedEmails } from '../db/schema.js';
+import { clients, invoiceEmails, invoices, receivedAttachments, receivedEmails } from '../db/schema.js';
+import { OWED_STATUSES } from '../invoices/email.js';
+import { decide, type Decision, type OwedInvoice } from './validation.js';
 
 export interface EmailProcessingDeps {
   db: Db;
@@ -18,8 +20,11 @@ export type EmailClassification = 'si' | 'no' | 'dudoso' | 'erroneo';
 export type EmailOutcome =
   /** RF-113: el remitente no es un cliente; queda como aviso Pendiente. */
   | { kind: 'aviso' }
-  /** `classification` es null si el email no traía adjuntos válidos (RF-115). */
-  | { kind: 'cliente'; clientId: number; classification: EmailClassification | null }
+  /**
+   * `classification` y `decision` son null si el email no traía adjuntos válidos: no
+   * dispara ninguna otra acción (RF-115).
+   */
+  | { kind: 'cliente'; clientId: number; classification: EmailClassification | null; decision: Decision | null }
   /** Ya se había procesado (por ejemplo, en una revisión anterior). */
   | { kind: 'ya_procesado' };
 
@@ -43,7 +48,10 @@ export function emailClassification(results: ClassifyOutcome[]): EmailClassifica
  *    Pendiente y no se sigue (RF-113);
  * 2. clasifica cada adjunto válido con el LLM, con el cuerpo del email como contexto, y
  *    extrae CUIT y monto de cada comprobante (RF-115, RF-119 a RF-122, RNF-02);
- * 3. registra en el historial del cliente el email y el resultado (RF-114, RF-124).
+ * 3. registra en el historial del cliente el email y el resultado (RF-114, RF-124);
+ * 4. aplica las reglas RF-126 a RF-137: las facturas pasan a Pago recibido o a Revisión
+ *    manual con su motivo (RF-138), o no cambian. El agente nunca marca una factura como
+ *    Pagada.
  * Todo se guarda junto al final: si se corta antes, el email se vuelve a procesar entero.
  */
 export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: number): Promise<EmailOutcome> {
@@ -53,7 +61,7 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
   if (email.processedAt) return { kind: 'ya_procesado' };
 
   const client = db
-    .select({ id: clients.id })
+    .select({ id: clients.id, cuit: clients.cuit })
     .from(clients)
     .where(eq(sql`lower(${clients.billingEmail})`, email.from.toLowerCase()))
     .get();
@@ -83,9 +91,32 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
   );
   const classification = valid.length > 0 ? emailClassification(results) : null;
 
-  db.transaction((tx) => {
+  const decision = db.transaction((tx) => {
+    // Las facturas adeudadas se leen dentro de la transacción, con el estado al día.
+    const owed = classification
+      ? (tx
+          .select({ id: invoices.id, period: invoices.period, totalCents: invoices.totalCents, status: invoices.status })
+          .from(invoices)
+          .where(and(eq(invoices.clientId, client.id), inArray(invoices.status, [...OWED_STATUSES])))
+          .all() as OwedInvoice[])
+      : [];
+    const decision = classification
+      ? decide({
+          classification,
+          receipts: results.flatMap((r) => (r.ok && r.classification === 'si' ? [{ cuit: r.cuit, amount: r.amount }] : [])),
+          clientCuit: client.cuit,
+          owed,
+        })
+      : null;
+
     tx.update(receivedEmails)
-      .set({ clientId: client.id, classification, processedAt: deps.now() })
+      .set({
+        clientId: client.id,
+        classification,
+        validationResult: !decision ? null : decision.action === 'none' ? 'sin_cambios' : decision.action === 'review' ? 'revision_manual' : 'pago_recibido',
+        validationRule: decision?.rule ?? null,
+        processedAt: deps.now(),
+      })
       .where(eq(receivedEmails.id, emailId))
       .run();
     valid.forEach((attachment, i) => {
@@ -122,7 +153,31 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
         }),
       });
     }
+
+    if (decision && decision.action !== 'none') {
+      const to = decision.action === 'payment_received' ? 'pago_recibido' : 'revision_manual';
+      // RF-129: el motivo nuevo reemplaza al anterior; en Pago recibido no hay motivo.
+      const reviewReason = decision.action === 'review' ? decision.reason : null;
+      for (const invoiceId of decision.invoiceIds) {
+        const before = owed.find((i) => i.id === invoiceId)!;
+        const updated = tx.update(invoices).set({ status: to, reviewReason }).where(eq(invoices.id, invoiceId)).returning().get();
+        // RF-139, RF-141: el email queda asociado a cada factura que tocó.
+        tx.insert(invoiceEmails).values({ invoiceId, emailId }).onConflictDoNothing().run();
+        recordClientEvent(tx, client.id, 'cambio_estado_factura', null, {
+          invoiceId,
+          pointOfSale: updated.pointOfSale,
+          number: updated.number,
+          period: updated.period,
+          from: before.status,
+          to,
+          reason: reviewReason,
+          rule: decision.rule,
+          emailId,
+        });
+      }
+    }
+    return decision;
   });
 
-  return { kind: 'cliente', clientId: client.id, classification };
+  return { kind: 'cliente', clientId: client.id, classification, decision };
 }

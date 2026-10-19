@@ -132,6 +132,7 @@ export const CLIENT_EVENT_TYPES = [
   'email_enviado',
   'email_recibido',
   'clasificacion_email',
+  'cambio_estado_factura',
   'error_proceso',
 ] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
@@ -490,6 +491,10 @@ export const receivedEmails = sqliteTable(
      * adjuntos; null si no tiene ninguno (RF-115) o es un aviso.
      */
     classification: text('classification', { enum: ['si', 'no', 'dudoso', 'erroneo'] }),
+    /** RF-126 a RF-137: qué hizo la validación con las facturas del cliente. */
+    validationResult: text('validation_result', { enum: ['sin_cambios', 'pago_recibido', 'revision_manual'] }),
+    /** Regla del PRD que se aplicó (por ejemplo, "RF-134"). */
+    validationRule: text('validation_rule'),
     /** Terminó de procesarse; null mientras falta (se retoma en la siguiente revisión). */
     processedAt: integer('processed_at', { mode: 'timestamp_ms' }),
   },
@@ -531,4 +536,24 @@ export const mailboxState = sqliteTable(
     lastCheckStartedAt: integer('last_check_started_at', { mode: 'timestamp_ms' }),
   },
   (t) => [check('mailbox_state_single_row', sql`${t.id} = 1`)],
+);
+
+/**
+ * Emails asociados a cada factura: el comprobante que la validó o que la llevó a Revisión
+ * manual, y los que llegaron mientras estaba en revisión (RF-139, RF-141).
+ */
+export const invoiceEmails = sqliteTable(
+  'invoice_emails',
+  {
+    invoiceId: integer('invoice_id')
+      .notNull()
+      .references(() => invoices.id),
+    emailId: integer('email_id')
+      .notNull()
+      .references(() => receivedEmails.id),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [primaryKey({ columns: [t.invoiceId, t.emailId] }), index('invoice_emails_email_idx').on(t.emailId)],
 );

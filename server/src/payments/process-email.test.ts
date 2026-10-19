@@ -51,7 +51,7 @@ describe('identificación del remitente', () => {
     const client = addClient({ billingEmail: 'pagos@losandes.com' });
     const email = addEmail('Pagos@LosAndes.com');
 
-    expect(await process(email.id)).toEqual({ kind: 'cliente', clientId: client.id, classification: null });
+    expect(await process(email.id)).toEqual({ kind: 'cliente', clientId: client.id, classification: null, decision: null });
     expect(getEmail(email.id)).toMatchObject({ clientId: client.id, notice: null });
   });
 

@@ -29,9 +29,17 @@ try {
     });
     console.log(`  ${result.ingested} emails nuevos.`);
     for (const { emailId, outcome } of result.outcomes) {
+      const decision = outcome.kind === 'cliente' ? outcome.decision : null;
+      const result = !decision
+        ? ''
+        : decision.action === 'none'
+          ? ` → sin cambios (${decision.rule})`
+          : decision.action === 'payment_received'
+            ? ` → facturas ${decision.invoiceIds.join(', ')} a Pago recibido (${decision.rule})`
+            : ` → facturas ${decision.invoiceIds.join(', ')} a Revisión manual: "${decision.reason}" (${decision.rule})`;
       const detail =
         outcome.kind === 'cliente'
-          ? `del cliente ${outcome.clientId}, clasificación: ${outcome.classification ?? 'sin adjuntos válidos'}`
+          ? `del cliente ${outcome.clientId}, clasificación: ${outcome.classification ?? 'sin adjuntos válidos'}${result}`
           : outcome.kind === 'aviso'
             ? 'aviso (remitente desconocido)'
             : 'ya procesado';

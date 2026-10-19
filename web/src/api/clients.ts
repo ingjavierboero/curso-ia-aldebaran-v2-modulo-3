@@ -1,3 +1,4 @@
+import type { HistoryEvent } from '../domain/history';
 import { api } from './client';
 
 export type ClientStatus = 'activo' | 'inactivo';
@@ -28,6 +29,8 @@ export interface Client {
   status: ClientStatus;
   /** Fecha de alta, en ISO. */
   createdAt: string;
+  /** RF-158: suma de sus facturas Pendientes de pago o en Revisión manual. */
+  debtCents: number;
 }
 
 export interface ClientInput {
@@ -61,4 +64,9 @@ export async function updateClient(id: number, input: ClientInput): Promise<Clie
 export async function setClientActive(id: number, active: boolean): Promise<Client> {
   const action = active ? 'reactivate' : 'deactivate';
   return (await api<{ client: Client }>('POST', `/clients/${id}/${action}`)).client;
+}
+
+/** RF-163: historial del cliente en orden cronológico. */
+export async function getClientHistory(id: number): Promise<HistoryEvent[]> {
+  return (await api<{ events: HistoryEvent[] }>('GET', `/clients/${id}/history`)).events;
 }

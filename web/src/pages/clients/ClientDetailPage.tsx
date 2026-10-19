@@ -6,13 +6,17 @@ import styled from 'styled-components';
 import { ApiError } from '../../api/client';
 import {
   getClient,
+  getClientHistory,
   IVA_CONDITIONS,
   setClientActive,
   updateClient,
   type Client,
   type ClientInput,
 } from '../../api/clients';
+import { HistoryTimeline } from '../../components/HistoryTimeline';
 import { formatCuit } from '../../domain/cuit';
+import type { HistoryEvent } from '../../domain/history';
+import { formatMoney } from '../../domain/money';
 import { useCanEdit } from '../../stores/session';
 import { AssignedProductsCard } from './AssignedProductsCard';
 import { ClientFormModal } from './ClientFormModal';
@@ -45,13 +49,16 @@ export function ClientDetailPage() {
   const { message } = App.useApp();
 
   const [client, setClient] = useState<Client | null>(null);
+  const [history, setHistory] = useState<HistoryEvent[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setClient(await getClient(Number(id)));
+      const [loaded, events] = await Promise.all([getClient(Number(id)), getClientHistory(Number(id))]);
+      setClient(loaded);
+      setHistory(events);
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 404
@@ -69,7 +76,8 @@ export function ClientDetailPage() {
 
   async function handleSubmit(input: ClientInput) {
     if (!client) return;
-    setClient(await updateClient(client.id, input));
+    await updateClient(client.id, input);
+    await load();
     setFormOpen(false);
     message.success('Cliente modificado.');
   }
@@ -78,7 +86,8 @@ export function ClientDetailPage() {
     if (!client) return;
     const activate = client.status === 'inactivo';
     try {
-      setClient(await setClientActive(client.id, activate));
+      await setClientActive(client.id, activate);
+      await load();
       message.success(activate ? 'Cliente reactivado.' : 'Cliente dado de baja.');
     } catch (err) {
       message.error(err instanceof Error ? err.message : 'No se pudo cambiar el estado.');
@@ -143,12 +152,24 @@ export function ClientDetailPage() {
           <Descriptions.Item label="Fecha de alta">
             {dateFormat.format(new Date(client.createdAt))}
           </Descriptions.Item>
+          <Descriptions.Item label="Deuda vigente">
+            {client.debtCents > 0 ? (
+              <Link to={`/facturas?clientId=${client.id}`}>{formatMoney(client.debtCents, 'ARS')}</Link>
+            ) : (
+              formatMoney(0, 'ARS')
+            )}
+          </Descriptions.Item>
         </Descriptions>
       </Card>
 
       <div style={{ marginTop: 16 }}>
         <AssignedProductsCard clientId={client.id} />
       </div>
+
+      {/* RF-163: historial del cliente, del más reciente al más antiguo. */}
+      <Card title="Historial" style={{ marginTop: 16 }}>
+        {history && <HistoryTimeline events={history} newestFirst />}
+      </Card>
 
       <ClientFormModal
         open={formOpen}

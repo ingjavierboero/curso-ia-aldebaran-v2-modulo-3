@@ -5,6 +5,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
+import { InvoiceDetailPage } from './pages/invoices/InvoiceDetailPage';
 import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
 import { MockMailboxPage } from './pages/mockMailbox/MockMailboxPage';
@@ -54,6 +55,7 @@ const router = createBrowserRouter([
           { path: 'clientes/:id', element: <ClientDetailPage /> },
           { path: 'productos', element: <ProductsPage /> },
           { path: 'facturas', element: <InvoicesPage /> },
+          { path: 'facturas/:id', element: <InvoiceDetailPage /> },
           { path: 'revision', element: <ReviewPage /> },
           { path: 'casilla-simulada', element: <MockOnly><MockMailboxPage /></MockOnly> },
           { path: 'configuracion', element: <SettingsPage /> },

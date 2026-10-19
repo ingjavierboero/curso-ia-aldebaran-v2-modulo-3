@@ -1,4 +1,7 @@
+import type { Currency } from '../domain/money';
+import type { HistoryEvent } from '../domain/history';
 import { api } from './client';
+import type { ReceivedEmail } from './review';
 
 export type InvoiceStatus = 'pendiente_pago' | 'pago_recibido' | 'revision_manual' | 'pagada';
 
@@ -45,6 +48,39 @@ export async function listInvoices(filters: InvoiceFilters = {}): Promise<Invoic
   const query = params.size > 0 ? `?${params}` : '';
   return (await api<{ invoices: InvoiceRow[] }>('GET', `/invoices${query}`)).invoices;
 }
+
+export interface Invoice extends InvoiceRow {
+  cae: string;
+  caeDueDate: string;
+  serviceFrom: string;
+  serviceTo: string;
+  clientCuit: string;
+  clientAddress: string | null;
+  clientIvaCondition: number;
+  exchangeRateCents: number | null;
+  exchangeRateSource: string | null;
+  exchangeRateReadAt: string | null;
+  exchangeRateFallback: boolean;
+}
+
+export interface InvoiceItem {
+  id: number;
+  description: string;
+  currency: Currency;
+  unitPriceCents: number;
+  amountCents: number;
+}
+
+export interface InvoiceDetail {
+  invoice: Invoice;
+  items: InvoiceItem[];
+  /** Cambios de estado y demás eventos de la factura (RF-217). */
+  history: HistoryEvent[];
+  /** Emails con comprobantes asociados a la factura. */
+  emails: ReceivedEmail[];
+}
+
+export const getInvoice = (id: number) => api<InvoiceDetail>('GET', `/invoices/${id}`);
 
 /** URL del PDF; la sesión viaja en la cookie. */
 export const invoicePdfUrl = (id: number) => `/api/invoices/${id}/pdf`;

@@ -16,6 +16,7 @@ import {
 } from '../../api/clients';
 import { TableAction } from '../../components/TableAction';
 import { formatCuit } from '../../domain/cuit';
+import { formatMoney } from '../../domain/money';
 import { useCanEdit } from '../../stores/session';
 import { ClientFormModal } from './ClientFormModal';
 
@@ -99,6 +100,13 @@ export function ClientsPage() {
       dataIndex: 'ivaCondition',
       render: (code: number | null) =>
         code === null ? <Typography.Text type="warning">Sin cargar</Typography.Text> : IVA_CONDITIONS[code],
+    },
+    // RF-158: deuda vigente total, también cuando es $0.
+    {
+      title: 'Deuda vigente',
+      dataIndex: 'debtCents',
+      align: 'right',
+      render: (cents: number) => <span style={{ whiteSpace: 'nowrap' }}>{formatMoney(cents, 'ARS')}</span>,
     },
     {
       title: 'Estado',

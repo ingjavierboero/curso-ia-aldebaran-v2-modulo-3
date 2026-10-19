@@ -4,6 +4,7 @@ import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { listClients, type Client } from '../../api/clients';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { formatVoucherNumber, INVOICE_STATUS_COLORS, INVOICE_STATUS_LABELS, markInvoicePaid, returnInvoiceToPending } from '../../api/invoices';
 import {
@@ -22,58 +23,13 @@ import {
   type ResolvedPayment,
   type ReviewInvoice,
 } from '../../api/review';
-import { AttachmentResults } from '../../components/AttachmentResults';
+import { Body, EmailCard, Emails } from '../../components/EmailCard';
 import { TableAction } from '../../components/TableAction';
 import { useCanEdit } from '../../stores/session';
 import { formatMoney } from '../../domain/money';
 
-const Body = styled.pre`
-  white-space: pre-wrap;
-  font-family: inherit;
-  margin: 0 0 8px;
-`;
-
-const Emails = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-`;
-
 const dateTime = (iso: string) => dayjs(iso).format('DD/MM/YYYY HH:mm');
 const periodName = (period: string) => dayjs(`${period}-01`).format('MMMM YYYY');
-
-const EMAIL_CLASS: Record<NonNullable<ReceivedEmail['classification']>, { label: string; color: string }> = {
-  si: { label: 'Comprobante', color: 'green' },
-  no: { label: 'No es comprobante', color: 'default' },
-  dudoso: { label: 'Dudoso', color: 'gold' },
-  erroneo: { label: 'Procesamiento erróneo', color: 'red' },
-};
-
-/** Un email recibido con su cuerpo y el resultado de cada adjunto. */
-function EmailCard({ email }: { email: ReceivedEmail }) {
-  const cls = email.classification ? EMAIL_CLASS[email.classification] : null;
-  return (
-    <Card
-      size="small"
-      title={
-        <Space wrap size={4}>
-          <span>{email.subject || '(sin asunto)'}</span>
-          <Typography.Text type="secondary" style={{ fontWeight: 'normal' }}>
-            · {email.from} · {dateTime(email.receivedAt)}
-          </Typography.Text>
-        </Space>
-      }
-      extra={cls && <Tag color={cls.color}>{cls.label}</Tag>}
-    >
-      <Body>{email.text.trim() || '(sin cuerpo)'}</Body>
-      {email.attachments.length > 0 && (
-        <AttachmentResults
-          attachments={email.attachments.map((a) => ({ ...a, href: receivedAttachmentUrl(email.id, a.id) }))}
-        />
-      )}
-    </Card>
-  );
-}
 
 /** Ejecuta una acción, avisa el resultado y recarga la revisión. */
 type Run = (action: () => Promise<unknown>, success: string) => Promise<void>;
@@ -386,6 +342,8 @@ export function ReviewPage() {
   const [notices, setNotices] = useState<ReceivedEmail[]>([]);
   const [errors, setErrors] = useState<ProcessErrorRow[]>([]);
   const [loading, setLoading] = useState(true);
+  // La solapa abierta viaja en ?tab= para enlazarla (por ejemplo, desde el banner de errores).
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -430,6 +388,8 @@ export function ReviewPage() {
     <>
       <Typography.Title level={3}>Revisión</Typography.Title>
       <Tabs
+        activeKey={searchParams.get('tab') ?? 'payments'}
+        onChange={(tab) => setSearchParams({ tab }, { replace: true })}
         items={[
           { key: 'payments', label: label('Pagos informados', invoices.length, '#1677ff'), children: <PaymentsTab invoices={invoices} loading={loading} run={actions} /> },
           { key: 'notices', label: label('Avisos', notices.length, '#fa8c16'), children: <NoticesTab notices={notices} loading={loading} run={actions} /> },

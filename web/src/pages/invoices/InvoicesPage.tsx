@@ -3,6 +3,7 @@ import { App, DatePicker, Select, Space, Table, Tag, Tooltip, Typography } from 
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import styled from 'styled-components';
 import { listClients, type Client } from '../../api/clients';
 import {
@@ -31,7 +32,7 @@ const STATUS_OPTIONS = Object.entries(INVOICE_STATUS_LABELS).map(([value, label]
 const formatDate = (date: string) => dayjs(date).format('DD/MM/YYYY');
 const formatPeriod = (period: string) => dayjs(`${period}-01`).format('MMMM YYYY');
 
-/** RF-160, RF-162, RF-168: listado de facturas con filtros y descarga del PDF. */
+/** RF-160, RF-162, RF-168: listado de facturas con filtros y descarga del PDF; click en la fila abre el detalle (RF-217). */
 export function InvoicesPage() {
   const { message } = App.useApp();
   const canEdit = useCanEdit();
@@ -39,7 +40,10 @@ export function InvoicesPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<InvoiceStatus>();
-  const [clientId, setClientId] = useState<number>();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // El detalle del cliente enlaza a sus facturas con ?clientId=.
+  const [clientId, setClientId] = useState<number | undefined>(() => Number(searchParams.get('clientId')) || undefined);
   const [period, setPeriod] = useState<Dayjs | null>(null);
 
   const load = useCallback(async () => {
@@ -88,7 +92,13 @@ export function InvoicesPage() {
       render: (_, i) => (
         <Space size={4}>
           <Tooltip title="Descargar PDF">
-            <a href={invoicePdfUrl(i.id)} target="_blank" rel="noreferrer" aria-label="Descargar PDF">
+            <a
+              href={invoicePdfUrl(i.id)}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Descargar PDF"
+              onClick={(e) => e.stopPropagation()}
+            >
               <FilePdfOutlined />
             </a>
           </Tooltip>
@@ -159,6 +169,14 @@ export function InvoicesPage() {
         pagination={{ pageSize: 20, hideOnSinglePage: true }}
         locale={{ emptyText: filtered ? 'Ninguna factura coincide con los filtros.' : 'Todavía no hay facturas.' }}
         scroll={{ x: true }}
+        onRow={(invoice) => ({
+          onClick: () => navigate(`/facturas/${invoice.id}`),
+          onKeyDown: (e) => {
+            if (e.key === 'Enter' && e.target === e.currentTarget) navigate(`/facturas/${invoice.id}`);
+          },
+          tabIndex: 0,
+          style: { cursor: 'pointer' },
+        })}
       />
     </>
   );

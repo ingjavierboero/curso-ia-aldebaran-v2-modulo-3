@@ -1,13 +1,14 @@
-import { and, asc, eq, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, eq, inArray, ne, or, sql, type SQL } from 'drizzle-orm';
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import { currentUser, requireRole } from '../auth/middleware.js';
 import type { Db } from '../db/index.js';
-import { ACTIVE_STATUSES, clients, IVA_CONDITION_CODES, type IvaCondition } from '../db/schema.js';
+import { ACTIVE_STATUSES, clients, invoices, IVA_CONDITION_CODES, type IvaCondition } from '../db/schema.js';
 import { isValidCuit, normalizeCuit } from '../domain/cuit.js';
 import { parseBody } from '../http/validation.js';
 import { assignmentRoutes } from './assignments.js';
+import { clientHistory } from './history.js';
 import { findClient } from './lookup.js';
 import { recordClientEvent } from './events.js';
 
@@ -68,12 +69,20 @@ export function clientRoutes(ctx: AppContext): Router {
       .where(and(...conditions))
       .orderBy(asc(sql`lower(${clients.businessName})`))
       .all();
-    res.json({ clients: rows });
+    // RF-158: deuda vigente total de cada cliente.
+    const debts = debtByClient(ctx.db);
+    res.json({ clients: rows.map((c) => ({ ...c, debtCents: debts.get(c.id) ?? 0 })) });
   });
 
   router.get('/:id', (req, res) => {
     const client = findClient(ctx.db, req, res);
-    if (client) res.json({ client });
+    if (client) res.json({ client: { ...client, debtCents: debtByClient(ctx.db).get(client.id) ?? 0 } });
+  });
+
+  // RF-163: historial del cliente en orden cronológico.
+  router.get('/:id/history', (req, res) => {
+    const client = findClient(ctx.db, req, res);
+    if (client) res.json({ events: clientHistory(ctx.db, client.id) });
   });
 
   // RF-34: alta de un cliente, que queda Activo.
@@ -84,7 +93,7 @@ export function clientRoutes(ctx: AppContext): Router {
     const user = currentUser(req);
     const client = ctx.db.transaction((tx) => {
       const created = tx.insert(clients).values({ ...data, status: 'activo' }).returning().get();
-      recordClientEvent(tx, created.id, 'alta', user.id, null);
+      recordClientEvent(tx, created.id, 'alta', user.id, null, ctx.now());
       return created;
     });
     res.status(201).json({ client });
@@ -109,7 +118,7 @@ export function clientRoutes(ctx: AppContext): Router {
     const user = currentUser(req);
     const client = ctx.db.transaction((tx) => {
       const updated = tx.update(clients).set(data).where(eq(clients.id, existing.id)).returning().get();
-      recordClientEvent(tx, existing.id, 'modificacion', user.id, { changes });
+      recordClientEvent(tx, existing.id, 'modificacion', user.id, { changes }, ctx.now());
       return updated;
     });
     res.json({ client });
@@ -171,8 +180,19 @@ function changeStatus(ctx: AppContext, req: Request, res: Response, status: 'act
   const user = currentUser(req);
   const client = ctx.db.transaction((tx) => {
     const updated = tx.update(clients).set({ status }).where(eq(clients.id, existing.id)).returning().get();
-    recordClientEvent(tx, existing.id, status === 'activo' ? 'reactivacion' : 'baja', user.id, null);
+    recordClientEvent(tx, existing.id, status === 'activo' ? 'reactivacion' : 'baja', user.id, null, ctx.now());
     return updated;
   });
   res.json({ client });
+}
+
+/** Deuda vigente por cliente: suma de sus facturas Pendientes de pago o en Revisión manual. */
+export function debtByClient(db: Db): Map<number, number> {
+  const rows = db
+    .select({ clientId: invoices.clientId, total: sql<number>`sum(${invoices.totalCents})` })
+    .from(invoices)
+    .where(inArray(invoices.status, ['pendiente_pago', 'revision_manual']))
+    .groupBy(invoices.clientId)
+    .all();
+  return new Map(rows.map((r) => [r.clientId, r.total]));
 }

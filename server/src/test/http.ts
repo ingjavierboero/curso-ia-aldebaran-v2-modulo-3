@@ -49,7 +49,7 @@ export async function startTestApp(
   const operations = () => {
     const billingDeps = { db: database.db, arca: new MockArcaClient(database.db), readRate: async () => 150_000, now, sleep: async () => {} };
     const mailer = new MockMailer(database.db, 'aldebaran-mock@gmail.com', now);
-    return { billing: billingDeps, invoiceEmail: { db: database.db, mailer, issuerCuit: '20111111112', mockMode: true } };
+    return { billing: billingDeps, invoiceEmail: { db: database.db, mailer, issuerCuit: '20111111112', mockMode: true, now } };
   };
   const server: Server = createApp({ db: database.db, ...options, billing, operations }).listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));

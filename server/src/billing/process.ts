@@ -90,7 +90,7 @@ export async function runBillingProcess(
             period,
             attempts: attempt,
             lastError: error instanceof Error ? error.message : String(error),
-          });
+          }, now());
           return;
         }
 

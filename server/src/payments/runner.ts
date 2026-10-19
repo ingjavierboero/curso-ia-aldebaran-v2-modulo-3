@@ -75,7 +75,7 @@ export class MailboxRunner {
         .run();
       return;
     }
-    recordProcessError(this.db, { operation: 'revision_casilla', attempts: 1, lastError: message });
+    recordProcessError(this.db, { operation: 'revision_casilla', attempts: 1, lastError: message }, this.now());
   }
 
   /** RF-106: cuando la casilla vuelve a estar disponible, el error pasa a Resuelto. */

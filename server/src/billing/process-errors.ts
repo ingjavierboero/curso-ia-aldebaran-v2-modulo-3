@@ -13,17 +13,20 @@ export function recordProcessError(
     period?: string;
     invoiceId?: number;
   },
+  /** Momento del error; por defecto, ahora. */
+  now?: Date,
 ) {
   return db.transaction((tx) => {
-    const row = tx.insert(processErrors).values(error).returning().get();
+    const row = tx.insert(processErrors).values({ ...error, ...(now ? { createdAt: now } : {}) }).returning().get();
     if (error.clientId !== undefined) {
       recordClientEvent(tx, error.clientId, 'error_proceso', null, {
         processErrorId: row.id,
         operation: error.operation,
         period: error.period,
+        invoiceId: error.invoiceId,
         attempts: error.attempts,
         lastError: error.lastError,
-      });
+      }, now);
     }
     return row;
   });

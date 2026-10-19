@@ -132,7 +132,7 @@ export async function generateInvoice(deps: GenerateDeps, clientId: number, peri
       const payload = previous.payload as AttemptPayload;
       const voucher = await deps.arca.getVoucher(previous.pointOfSale, previous.pendingNumber);
       if (voucher && voucher.receiverCuit === client.cuit && voucher.totalCents === payload.totalCents) {
-        const invoice = saveInvoice(db, client, ivaCondition, period, voucher, payload, {
+        const invoice = saveInvoice(db, deps.now(), client, ivaCondition, period, voucher, payload, {
           ...dates,
           issueDate: voucher.issueDate,
           paymentDueDate: paymentDueDate(period, voucher.issueDate),
@@ -159,7 +159,7 @@ export async function generateInvoice(deps: GenerateDeps, clientId: number, peri
       receiverIvaCondition: ivaCondition,
       totalCents: fresh.totalCents,
     });
-    return { status: 'generated', invoice: saveInvoice(db, client, ivaCondition, period, voucher, fresh, dates) };
+    return { status: 'generated', invoice: saveInvoice(db, deps.now(), client, ivaCondition, period, voucher, fresh, dates) };
   });
 }
 
@@ -174,6 +174,7 @@ function findInvoice(db: Db, clientId: number, period: string): Invoice | undefi
 /** Registra la factura autorizada, sus ítems y el evento del historial, y borra el intento. */
 function saveInvoice(
   db: Db,
+  at: Date,
   client: typeof clients.$inferSelect,
   ivaCondition: number,
   period: string,
@@ -220,7 +221,7 @@ function saveInvoice(
       number: invoice.number,
       period,
       totalCents: invoice.totalCents,
-    });
+    }, at);
     return invoice;
   });
 }

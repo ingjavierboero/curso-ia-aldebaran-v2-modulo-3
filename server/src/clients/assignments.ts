@@ -55,7 +55,7 @@ export function assignmentRoutes(ctx: AppContext): Router {
         recordClientEvent(tx, client.id, 'asignacion_producto', user.id, {
           productId: product.id,
           productName: product.name,
-        });
+        }, ctx.now());
       }
     });
 
@@ -82,7 +82,7 @@ export function assignmentRoutes(ctx: AppContext): Router {
       recordClientEvent(tx, client.id, 'desasignacion_producto', user.id, {
         productId,
         productName: assigned.name,
-      });
+      }, ctx.now());
     });
 
     res.json({ products: assignedProducts(ctx.db, client.id) });

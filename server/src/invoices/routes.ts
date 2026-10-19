@@ -3,6 +3,9 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
 import { currentUser, requireRole } from '../auth/middleware.js';
+import { invoiceHistory } from '../clients/history.js';
+import { invoiceEmails } from '../db/schema.js';
+import { emailsWithAttachments } from '../review/emails.js';
 import { changeInvoiceStatus, InvoiceActionError } from './actions.js';
 import { INVOICE_STATUSES, invoiceItems, invoices } from '../db/schema.js';
 import { getSettings } from '../settings/settings.js';
@@ -49,6 +52,19 @@ export function invoiceRoutes(ctx: AppContext): Router {
       .orderBy(desc(invoices.period), desc(invoices.pointOfSale), desc(invoices.number))
       .all();
     res.json({ invoices: rows });
+  });
+
+  // RF-217: detalle de la factura con sus cuotas, sus cambios de estado y sus emails.
+  router.get('/:id', (req, res) => {
+    const id = Number(req.params.id);
+    const invoice = Number.isInteger(id) && id > 0 ? ctx.db.select().from(invoices).where(eq(invoices.id, id)).get() : undefined;
+    if (!invoice) {
+      res.status(404).json({ error: 'La factura no existe.' });
+      return;
+    }
+    const items = ctx.db.select().from(invoiceItems).where(eq(invoiceItems.invoiceId, id)).orderBy(asc(invoiceItems.id)).all();
+    const emailIds = ctx.db.select({ id: invoiceEmails.emailId }).from(invoiceEmails).where(eq(invoiceEmails.invoiceId, id)).all().map((r) => r.id);
+    res.json({ invoice, items, history: invoiceHistory(ctx.db, id), emails: emailsWithAttachments(ctx.db, emailIds) });
   });
 
   // RF-143, RF-145, RF-147: un Admin o Editor pasa una factura a Pagada.

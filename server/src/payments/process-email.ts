@@ -138,7 +138,7 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
       subject: email.subject,
       receivedAt: email.receivedAt.toISOString(),
       attachments: attachments.map((a) => ({ filename: a.filename, valid: a.valid })),
-    });
+    }, deps.now());
     // RF-124: clasificación de cada adjunto, CUIT y monto de cada comprobante o la marca
     // de procesamiento erróneo, y la clasificación del email.
     if (classification) {
@@ -151,7 +151,7 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
             ? { filename: a.filename, classification: r.classification, cuit: r.cuit, amount: r.amount }
             : { filename: a.filename, error: r.error, attempts: r.attempts };
         }),
-      });
+      }, deps.now());
     }
 
     if (decision && decision.action !== 'none') {
@@ -173,7 +173,7 @@ export async function processReceivedEmail(deps: EmailProcessingDeps, emailId: n
           reason: reviewReason,
           rule: decision.rule,
           emailId,
-        });
+        }, deps.now());
       }
     }
     return decision;

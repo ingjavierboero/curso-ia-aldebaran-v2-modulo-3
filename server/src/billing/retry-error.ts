@@ -108,7 +108,7 @@ async function retryGeneration(deps: OperationsDeps, clientId: number, period: s
       invoiceId: invoice.id,
       attempts: 1,
       lastError: cause instanceof Error ? cause.message : String(cause),
-    });
+    }, now());
     return `Factura ${invoice.pointOfSale}-${invoice.number} generada, pero no se pudo enviar el email: quedó un error de envío para reintentarlo.`;
   }
 }

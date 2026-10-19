@@ -33,7 +33,7 @@ export function createBillingDeps(
     sleep,
     onInvoiceGenerated: async (invoice) => {
       await deliverInvoiceEmail(
-        { db, mailer, issuerCuit: config.arca.cuit, mockMode: config.mockMode, sleep },
+        { db, mailer, issuerCuit: config.arca.cuit, mockMode: config.mockMode, sleep, now },
         invoice,
       );
       options.afterInvoice?.(invoice);
@@ -50,6 +50,6 @@ export interface OperationsDeps {
 export function createOperationsDeps(config: Config, db: Db, now: () => Date = () => new Date()): OperationsDeps {
   return {
     billing: createBillingDeps(config, db, { now }),
-    invoiceEmail: { db, mailer: createMailer(config, db, now), issuerCuit: config.arca.cuit, mockMode: config.mockMode },
+    invoiceEmail: { db, mailer: createMailer(config, db, now), issuerCuit: config.arca.cuit, mockMode: config.mockMode, now },
   };
 }

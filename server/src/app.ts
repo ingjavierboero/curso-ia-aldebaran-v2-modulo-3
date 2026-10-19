@@ -6,6 +6,7 @@ import { billingRoutes } from './billing/routes.js';
 import type { OperationsDeps } from './billing/deps.js';
 import type { BillingRunner } from './billing/runner.js';
 import { clientRoutes } from './clients/routes.js';
+import { dashboardRoutes } from './dashboard/routes.js';
 import type { Db } from './db/index.js';
 import { invoiceRoutes } from './invoices/routes.js';
 import { mockMailboxRoutes } from './mailbox/mock-routes.js';
@@ -77,6 +78,7 @@ export function createApp(options: AppOptions) {
   app.use('/api/billing', billingRoutes(ctx));
   app.use('/api/mock-mailbox', mockMailboxRoutes(ctx));
   app.use('/api/review', reviewRoutes(ctx));
+  app.use('/api/dashboard', dashboardRoutes(ctx));
   app.use('/api/received-emails', receivedEmailRoutes(ctx));
   app.use('/api/settings', settingsRoutes(ctx));
 

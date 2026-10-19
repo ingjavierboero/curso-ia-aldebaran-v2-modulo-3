@@ -122,6 +122,8 @@ export function emailSenderName(settings: Pick<Settings, 'issuerTradeName' | 'is
 
 export interface InvoiceEmailDeps {
   db: Db;
+  /** Reloj de la app, para fechar el historial; por defecto, ahora. */
+  now?: () => Date;
   mailer: Mailer;
   issuerCuit: string;
   mockMode: boolean;
@@ -163,7 +165,7 @@ export async function sendInvoiceEmail(deps: InvoiceEmailDeps, invoiceId: number
     to: sent.to,
     subject: content.subject,
     messageId: sent.messageId,
-  });
+  }, deps.now?.());
   return true;
 }
 
@@ -193,7 +195,7 @@ export async function deliverInvoiceEmail(
         invoiceId: invoice.id,
         attempts: attempt,
         lastError: error instanceof Error ? error.message : String(error),
-      });
+      }, deps.now?.());
     }
   }
 }

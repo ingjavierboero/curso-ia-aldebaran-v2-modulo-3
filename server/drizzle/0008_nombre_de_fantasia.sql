@@ -1,0 +1,1 @@
+ALTER TABLE `settings` ADD `issuer_trade_name` text;

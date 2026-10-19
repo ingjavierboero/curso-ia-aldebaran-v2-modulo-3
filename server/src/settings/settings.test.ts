@@ -10,6 +10,7 @@ const VALID = {
   retryWaitMinutes: 5,
   pointOfSale: 1,
   issuerBusinessName: 'Aldebaran SAS',
+  issuerTradeName: 'Aldebaran Software',
   issuerAddress: 'Av. Corrientes 1234, CABA',
   issuerIvaCondition: 'Responsable Monotributo',
   issuerGrossIncomeNumber: '901-123456-7',

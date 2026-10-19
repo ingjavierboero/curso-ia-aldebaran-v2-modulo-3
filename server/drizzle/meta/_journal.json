@@ -50,6 +50,20 @@
       "when": 1792362718446,
       "tag": "0006_facturacion",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1792367594661,
+      "tag": "0007_casilla_simulada",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792368468581,
+      "tag": "0008_nombre_de_fantasia",
+      "breakpoints": true
     }
   ]
 }

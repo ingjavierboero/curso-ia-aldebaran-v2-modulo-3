@@ -37,6 +37,7 @@ const settingsSchema = z.object({
   pointOfSale: integer('El punto de venta', 1, 99_999), // RF-73
   // RF-91: datos de la empresa emisora.
   issuerBusinessName: optionalText,
+  issuerTradeName: optionalText,
   issuerAddress: optionalText,
   issuerIvaCondition: optionalText,
   issuerGrossIncomeNumber: optionalText,

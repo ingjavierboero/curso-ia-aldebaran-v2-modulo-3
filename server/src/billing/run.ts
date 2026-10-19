@@ -3,11 +3,10 @@
 // "Facturar ahora":   MOCK_MODE=true npm run billing:run -- 2026-10
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { createArcaClient } from '../arca/index.js';
 import { loadConfig, ROOT_DIR, TIMEZONE } from '../config.js';
 import { openDatabase } from '../db/index.js';
-import { fetchBlueSellRate } from '../exchange/dolarhoy.js';
 import { currentPeriod } from './dates.js';
+import { createBillingDeps } from './deps.js';
 import { defaultSleep, runBillingProcess } from './process.js';
 
 process.env.TZ = TIMEZONE;
@@ -25,20 +24,17 @@ try {
     console.log(`Facturando ${period} (${config.mockMode ? 'modo mock, ARCA simulado' : 'ARCA homologación'})…`);
     console.log(`  base de datos: ${path.relative(ROOT_DIR, config.databasePath)}`);
     const summary = await runBillingProcess(
-      {
-        db,
-        arca: createArcaClient(config, db, now),
-        readRate: () => fetchBlueSellRate(),
+      createBillingDeps(config, db, {
         now,
         sleep: (ms) => {
           console.log(`  reintento en ${ms / 60_000} min…`);
           return defaultSleep(ms);
         },
-        onInvoiceGenerated: async (invoice) => {
+        afterInvoice: (invoice) => {
           const total = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(invoice.totalCents / 100);
           console.log(`  factura ${invoice.pointOfSale}-${invoice.number} → ${invoice.clientBusinessName}: ${total}`);
         },
-      },
+      }),
       period,
     );
     console.log(`Listo: ${summary.generated} generadas, ${summary.failed} con error, ${summary.skipped} ya facturadas.`);

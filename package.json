@@ -20,7 +20,8 @@
     "db:reset:mock": "rm -f data/aldebaran-mock.db data/aldebaran-mock.db-wal data/aldebaran-mock.db-shm",
     "exchange:check": "npm run exchange:check -w server",
     "arca:check": "npm run arca:check -w server --",
-    "billing:run": "npm run billing:run -w server --"
+    "billing:run": "npm run billing:run -w server --",
+    "email:check": "npm run email:check -w server --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

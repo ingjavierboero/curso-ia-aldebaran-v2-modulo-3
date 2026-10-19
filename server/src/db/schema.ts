@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  blob,
   check,
   index,
   integer,
@@ -128,6 +129,7 @@ export const CLIENT_EVENT_TYPES = [
   'asignacion_producto',
   'desasignacion_producto',
   'factura_generada',
+  'email_enviado',
   'error_proceso',
 ] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
@@ -266,6 +268,8 @@ export const settings = sqliteTable(
     pointOfSale: integer('point_of_sale').notNull().default(1),
     // RF-91: datos de la empresa emisora.
     issuerBusinessName: text('issuer_business_name'),
+    /** RF-215: nombre con el que se firman los emails; no va en el PDF. */
+    issuerTradeName: text('issuer_trade_name'),
     issuerAddress: text('issuer_address'),
     issuerIvaCondition: text('issuer_iva_condition'),
     issuerGrossIncomeNumber: text('issuer_gross_income_number'),
@@ -420,3 +424,38 @@ export const processErrors = sqliteTable(
     check('process_errors_operation_check', inList(t.operation, PROCESS_OPERATIONS)),
   ],
 );
+
+/**
+ * Casilla simulada del modo mock (RF-196 a RF-203): guarda los emails que el sistema
+ * envía y los recibidos que carga un usuario. Fuera del modo mock no se usa.
+ */
+export const mockMailboxEmails = sqliteTable(
+  'mock_mailbox_emails',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    direction: text('direction', { enum: ['enviado', 'recibido'] }).notNull(),
+    messageId: text('message_id').notNull(),
+    from: text('from').notNull(),
+    to: text('to').notNull(),
+    subject: text('subject').notNull(),
+    text: text('text').notNull(),
+    html: text('html'),
+    /** Fecha de envío o, para los recibidos, de carga (RF-201). */
+    date: integer('date', { mode: 'timestamp_ms' }).notNull(),
+    /** Usuario que cargó un email recibido. */
+    createdBy: integer('created_by').references(() => users.id),
+  },
+  (t) => [uniqueIndex('mock_mailbox_message_id_unique').on(t.messageId), index('mock_mailbox_date_idx').on(t.date)],
+);
+
+export const mockMailboxAttachments = sqliteTable('mock_mailbox_attachments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  emailId: integer('email_id')
+    .notNull()
+    .references(() => mockMailboxEmails.id),
+  filename: text('filename').notNull(),
+  contentType: text('content_type').notNull(),
+  /** Imagen embebida en el cuerpo (RF-116), no un adjunto. */
+  inline: integer('inline', { mode: 'boolean' }).notNull().default(false),
+  content: blob('content', { mode: 'buffer' }).notNull(),
+});

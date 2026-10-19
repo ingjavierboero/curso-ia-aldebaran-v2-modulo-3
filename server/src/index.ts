@@ -2,7 +2,10 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createApp } from './app.js';
 import { ConfigError, loadConfig, ROOT_DIR, TIMEZONE } from './config.js';
+import { createBillingDeps } from './billing/deps.js';
+import { BillingRunner } from './billing/runner.js';
 import { openDatabase } from './db/index.js';
+import { startScheduler } from './jobs/scheduler.js';
 
 // RNF-12: todas las fechas del proceso se rigen por la hora de Argentina.
 process.env.TZ = TIMEZONE;
@@ -24,11 +27,18 @@ try {
 
 // Abre la base y aplica las migraciones pendientes antes de aceptar requests.
 const database = openDatabase(config.databasePath);
+const billing = new BillingRunner(
+  database.db,
+  () => createBillingDeps(config, database.db),
+  () => new Date(),
+  config.schedulerEnabled,
+);
 
 const server = createApp({
   db: database.db,
   mockMode: config.mockMode,
   issuerCuit: config.arca.cuit,
+  billing,
   secureCookies: process.env.NODE_ENV === 'production',
 }).listen(config.port, () => {
   const mode = config.mockMode ? 'modo mock: ARCA, LLM y email simulados' : 'modo real';
@@ -37,7 +47,11 @@ const server = createApp({
   console.log(`Procesos automáticos: ${config.schedulerEnabled ? 'activados' : 'desactivados'}`);
 });
 
+// Procesos automáticos: solo con SCHEDULER_ENABLED (en modo mock, activados por defecto).
+const scheduler = config.schedulerEnabled ? startScheduler(billing) : null;
+
 function shutdown() {
+  scheduler?.stop();
   server.close(() => {
     database.close();
     process.exit(0);

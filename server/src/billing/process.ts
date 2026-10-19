@@ -120,7 +120,7 @@ export async function runBillingProcess(
  * afuera los que ya tienen un error de generación Pendiente del período: se intentaron
  * en una corrida anterior y se reintentan a mano (RF-176).
  */
-function billableClientIds(db: Db, period: string): number[] {
+export function billableClientIds(db: Db, period: string): number[] {
   return db
     .select({ id: clients.id })
     .from(clients)

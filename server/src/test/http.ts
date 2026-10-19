@@ -1,7 +1,9 @@
 import { request as httpRequest, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { createApp } from '../app.js';
+import { MockArcaClient } from '../arca/mock.js';
 import { hashPassword } from '../auth/password.js';
+import { BillingRunner } from '../billing/runner.js';
 import { openDatabase, type Db } from '../db/index.js';
 import { users, type UserRole } from '../db/schema.js';
 
@@ -17,6 +19,7 @@ export interface TestResponse {
 
 export interface TestApp {
   db: Db;
+  billing: BillingRunner;
   request: (
     method: string,
     path: string,
@@ -35,12 +38,20 @@ export async function startTestApp(
   options: { now?: () => Date; mockMode?: boolean; issuerCuit?: string } = {},
 ): Promise<TestApp> {
   const database = openDatabase(':memory:');
-  const server: Server = createApp({ db: database.db, ...options }).listen(0, '127.0.0.1');
+  const now = options.now ?? (() => new Date());
+  // Facturación con ARCA simulado, cotización fija y sin esperas entre reintentos.
+  const billing = new BillingRunner(
+    database.db,
+    () => ({ db: database.db, arca: new MockArcaClient(database.db), readRate: async () => 150_000, now, sleep: async () => {} }),
+    now,
+  );
+  const server: Server = createApp({ db: database.db, ...options, billing }).listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
 
   return {
     db: database.db,
+    billing,
     request(method, path, { body, rawBody, cookie } = {}) {
       const payload = rawBody ?? (body === undefined ? undefined : JSON.stringify(body));
       const headers: Record<string, string> = {};

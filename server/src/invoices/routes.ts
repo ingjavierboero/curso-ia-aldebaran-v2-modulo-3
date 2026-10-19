@@ -1,12 +1,53 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, desc, eq, type SQL } from 'drizzle-orm';
 import { Router } from 'express';
+import { z } from 'zod';
 import type { AppContext } from '../app.js';
-import { invoiceItems, invoices } from '../db/schema.js';
+import { INVOICE_STATUSES, invoiceItems, invoices } from '../db/schema.js';
 import { getSettings } from '../settings/settings.js';
 import { formatVoucherNumber, renderInvoicePdf } from './pdf.js';
 
+const listQuerySchema = z.object({
+  status: z.enum(INVOICE_STATUSES).optional(),
+  clientId: z.coerce.number().int().positive().optional(),
+  period: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+});
+
 export function invoiceRoutes(ctx: AppContext): Router {
   const router = Router();
+
+  // RF-160, RF-168: listado con filtros por estado, cliente y período.
+  router.get('/', (req, res) => {
+    const query = listQuerySchema.safeParse(req.query);
+    if (!query.success) {
+      res.status(400).json({ error: 'Filtro inválido.' });
+      return;
+    }
+    const { status, clientId, period } = query.data;
+    const conditions: SQL[] = [];
+    if (status) conditions.push(eq(invoices.status, status));
+    if (clientId) conditions.push(eq(invoices.clientId, clientId));
+    if (period) conditions.push(eq(invoices.period, period));
+
+    const rows = ctx.db
+      .select({
+        id: invoices.id,
+        clientId: invoices.clientId,
+        clientBusinessName: invoices.clientBusinessName,
+        period: invoices.period,
+        pointOfSale: invoices.pointOfSale,
+        number: invoices.number,
+        issueDate: invoices.issueDate,
+        paymentDueDate: invoices.paymentDueDate,
+        totalCents: invoices.totalCents,
+        status: invoices.status,
+        reviewReason: invoices.reviewReason,
+      })
+      .from(invoices)
+      .where(and(...conditions))
+      .orderBy(desc(invoices.period), desc(invoices.pointOfSale), desc(invoices.number))
+      .all();
+    res.json({ invoices: rows });
+  });
 
   // RF-162: cualquier perfil descarga el PDF de una factura emitida.
   router.get('/:id/pdf', async (req, res) => {

@@ -2,6 +2,8 @@ import cookieParser from 'cookie-parser';
 import express, { type ErrorRequestHandler } from 'express';
 import { requireAuth } from './auth/middleware.js';
 import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
+import { billingRoutes } from './billing/routes.js';
+import type { BillingRunner } from './billing/runner.js';
 import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
 import { invoiceRoutes } from './invoices/routes.js';
@@ -17,6 +19,7 @@ export interface AppContext {
   mockMode: boolean;
   /** CUIT del emisor (ARCA_CUIT). */
   issuerCuit: string;
+  billing: BillingRunner;
 }
 
 export interface AppOptions {
@@ -25,6 +28,7 @@ export interface AppOptions {
   secureCookies?: boolean;
   mockMode?: boolean;
   issuerCuit?: string;
+  billing: BillingRunner;
 }
 
 export function createApp(options: AppOptions) {
@@ -34,6 +38,7 @@ export function createApp(options: AppOptions) {
     secureCookies: options.secureCookies ?? false,
     mockMode: options.mockMode ?? false,
     issuerCuit: options.issuerCuit ?? '20111111112',
+    billing: options.billing,
   };
 
   const app = express();
@@ -57,6 +62,7 @@ export function createApp(options: AppOptions) {
   app.use('/api/clients', clientRoutes(ctx));
   app.use('/api/products', productRoutes(ctx));
   app.use('/api/invoices', invoiceRoutes(ctx));
+  app.use('/api/billing', billingRoutes(ctx));
   app.use('/api/settings', settingsRoutes(ctx));
 
   app.use('/api', (_req, res) => {

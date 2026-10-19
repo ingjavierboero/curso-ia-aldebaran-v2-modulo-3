@@ -35,3 +35,25 @@ export function paymentDueDate(period: string, issueDate: string): string {
   const { to } = periodBounds(period);
   return issueDate > to ? issueDate : to;
 }
+
+const timeParts = new Intl.DateTimeFormat('en-GB', {
+  timeZone: TIMEZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+/** RNF-12: hora actual en Argentina, "HH:MM". */
+export function argentinaTime(now: Date): string {
+  return timeParts.format(now);
+}
+
+/**
+ * RF-51, RF-52: ya pasó (o es) el día 15 a la hora de facturación del mes en curso, en
+ * hora de Argentina. Si el sistema estuvo apagado ese momento, sigue siendo cierto el
+ * resto del mes, así que la facturación corre apenas vuelve.
+ */
+export function isBillingDue(now: Date, billingTime: string): boolean {
+  const day = Number(argentinaDate(now).slice(8, 10));
+  return day > 15 || (day === 15 && argentinaTime(now) >= billingTime);
+}

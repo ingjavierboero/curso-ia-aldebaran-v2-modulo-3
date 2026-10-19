@@ -5,6 +5,7 @@ import { AppLayout } from './layouts/AppLayout';
 import { ClientDetailPage } from './pages/clients/ClientDetailPage';
 import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
+import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
 import { ProductsPage } from './pages/products/ProductsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -50,6 +51,7 @@ const router = createBrowserRouter([
           { path: 'clientes', element: <ClientsPage /> },
           { path: 'clientes/:id', element: <ClientDetailPage /> },
           { path: 'productos', element: <ProductsPage /> },
+          { path: 'facturas', element: <InvoicesPage /> },
           { path: 'configuracion', element: <SettingsPage /> },
         ],
       },

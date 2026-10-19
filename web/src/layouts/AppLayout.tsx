@@ -1,4 +1,4 @@
-import { AppstoreOutlined, HomeOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FileTextOutlined, HomeOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
 import { Layout, Menu } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import styled from 'styled-components';
@@ -12,6 +12,7 @@ const MENU_ITEMS = [
   { key: '/', icon: <HomeOutlined />, label: 'Inicio' },
   { key: '/clientes', icon: <TeamOutlined />, label: 'Clientes' },
   { key: '/productos', icon: <AppstoreOutlined />, label: 'Productos' },
+  { key: '/facturas', icon: <FileTextOutlined />, label: 'Facturas' },
   { key: '/configuracion', icon: <SettingOutlined />, label: 'Configuración' },
 ];
 

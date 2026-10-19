@@ -1,12 +1,21 @@
 import { PaperClipOutlined, PlusOutlined } from '@ant-design/icons';
-import { Alert, App, Button, Collapse, Space, Table, Tag, Typography } from 'antd';
+import { Alert, App, Button, Card, Collapse, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
 import styled from 'styled-components';
 import { listMockEmails, mockAttachmentUrl, type MockEmail } from '../../api/mockMailbox';
 import { useCanEdit, useSession } from '../../stores/session';
+import { ProcessingDetail, ProcessingTag } from './ProcessingDetail';
 import { UploadEmailModal } from './UploadEmailModal';
+
+/** Email y procesamiento lado a lado; en pantallas angostas, uno debajo del otro. */
+const Details = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 12px;
+  align-items: start;
+`;
 
 const Body = styled.pre`
   white-space: pre-wrap;
@@ -57,6 +66,11 @@ export function MockMailboxPage() {
     { title: 'De', dataIndex: 'from' },
     { title: 'Para', dataIndex: 'to' },
     { title: 'Asunto', dataIndex: 'subject' },
+    {
+      title: 'Procesamiento',
+      key: 'processing',
+      render: (_, e) => <ProcessingTag processing={e.processing} />,
+    },
     {
       title: <PaperClipOutlined aria-label="Adjuntos" />,
       key: 'attachments',
@@ -116,19 +130,26 @@ export function MockMailboxPage() {
         expandable={{
           expandRowByClick: true,
           expandedRowRender: (email) => (
-            <>
-              <Body>{email.text || '(sin cuerpo)'}</Body>
-              {email.attachments.length > 0 && (
-                <Space wrap>
-                  {email.attachments.map((a) => (
-                    <a key={a.id} href={mockAttachmentUrl(email.id, a.id)} target="_blank" rel="noreferrer">
-                      <PaperClipOutlined /> {a.filename}
-                      {a.inline && ' (embebida)'}
-                    </a>
-                  ))}
-                </Space>
+            <Details>
+              <Card size="small" title="Email">
+                <Body>{email.text || '(sin cuerpo)'}</Body>
+                {email.attachments.length > 0 && (
+                  <Space wrap>
+                    {email.attachments.map((a) => (
+                      <a key={a.id} href={mockAttachmentUrl(email.id, a.id)} target="_blank" rel="noreferrer">
+                        <PaperClipOutlined /> {a.filename}
+                        {a.inline && ' (embebida)'}
+                      </a>
+                    ))}
+                  </Space>
+                )}
+              </Card>
+              {email.processing && (
+                <Card size="small" title="Procesamiento del agente" extra={<ProcessingTag processing={email.processing} />}>
+                  <ProcessingDetail processing={email.processing} />
+                </Card>
               )}
-            </>
+            </Details>
           ),
         }}
       />

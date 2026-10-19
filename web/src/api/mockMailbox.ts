@@ -8,6 +8,26 @@ export interface MockAttachment {
   size: number;
 }
 
+/** Qué hizo el agente con un email recibido. */
+export interface EmailProcessing {
+  status: 'pendiente' | 'aviso' | 'procesado';
+  clientId: number | null;
+  clientName: string | null;
+  processedAt: string | null;
+  classification: 'si' | 'no' | 'dudoso' | 'erroneo' | null;
+  validationResult: 'sin_cambios' | 'pago_recibido' | 'revision_manual' | null;
+  validationRule: string | null;
+  changes: { invoiceId: number; pointOfSale: number; number: number; to: string; reason: string | null }[];
+  attachments: {
+    filename: string;
+    valid: boolean;
+    classification: 'si' | 'no' | 'dudoso' | null;
+    cuit: string | null;
+    amount: string | null;
+    error: string | null;
+  }[];
+}
+
 export interface MockEmail {
   id: number;
   direction: 'enviado' | 'recibido';
@@ -19,6 +39,8 @@ export interface MockEmail {
   /** ISO: envío o, para los recibidos, el momento de la carga. */
   date: string;
   attachments: MockAttachment[];
+  /** Solo en los recibidos. */
+  processing: EmailProcessing | null;
 }
 
 export interface UploadAttachment {

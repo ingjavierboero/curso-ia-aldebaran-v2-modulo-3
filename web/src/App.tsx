@@ -9,6 +9,7 @@ import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
 import { MockMailboxPage } from './pages/mockMailbox/MockMailboxPage';
 import { ProductsPage } from './pages/products/ProductsPage';
+import { ReviewPage } from './pages/review/ReviewPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { SetupPage } from './pages/SetupPage';
 import { LoginRoute, MockOnly, RequireAuth, SetupRoute } from './routes/guards';
@@ -53,6 +54,7 @@ const router = createBrowserRouter([
           { path: 'clientes/:id', element: <ClientDetailPage /> },
           { path: 'productos', element: <ProductsPage /> },
           { path: 'facturas', element: <InvoicesPage /> },
+          { path: 'revision', element: <ReviewPage /> },
           { path: 'casilla-simulada', element: <MockOnly><MockMailboxPage /></MockOnly> },
           { path: 'configuracion', element: <SettingsPage /> },
         ],

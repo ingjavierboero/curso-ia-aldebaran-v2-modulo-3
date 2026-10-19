@@ -1,5 +1,6 @@
-import { Descriptions, Table, Tag, Tooltip, Typography } from 'antd';
+import { Descriptions, Tag, Tooltip, Typography } from 'antd';
 import type { EmailProcessing } from '../../api/mockMailbox';
+import { AttachmentResults } from '../../components/AttachmentResults';
 import { formatVoucherNumber, INVOICE_STATUS_LABELS, type InvoiceStatus } from '../../api/invoices';
 
 const CLASSIFICATION_LABELS: Record<NonNullable<EmailProcessing['classification']>, string> = {
@@ -98,33 +99,7 @@ export function ProcessingDetail({ processing }: { processing: EmailProcessing }
           ))}
         </ul>
       )}
-      {processing.attachments.length > 0 && (
-        <Table
-          size="small"
-          pagination={false}
-          rowKey={(a) => a.filename}
-          dataSource={processing.attachments}
-          columns={[
-            { title: 'Adjunto', dataIndex: 'filename' },
-            {
-              title: 'Clasificación',
-              key: 'classification',
-              render: (_, a) =>
-                !a.valid ? (
-                  <Typography.Text type="secondary">no se procesa</Typography.Text>
-                ) : a.error ? (
-                  <Tooltip title={a.error}>
-                    <Tag color="red">Erróneo</Tag>
-                  </Tooltip>
-                ) : (
-                  <Tag>{a.classification}</Tag>
-                ),
-            },
-            { title: 'CUIT extraído', dataIndex: 'cuit', render: (v: string | null, a) => (a.classification === 'si' ? (v ?? 'no extraído') : '') },
-            { title: 'Monto extraído', dataIndex: 'amount', render: (v: string | null, a) => (a.classification === 'si' ? (v ?? 'no extraído') : '') },
-          ]}
-        />
-      )}
+      {processing.attachments.length > 0 && <AttachmentResults attachments={processing.attachments} />}
     </>
   );
 }

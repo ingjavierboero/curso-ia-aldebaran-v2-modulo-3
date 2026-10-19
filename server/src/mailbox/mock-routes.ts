@@ -8,6 +8,7 @@ import { clients, mockMailboxAttachments, mockMailboxEmails } from '../db/schema
 import { parseBody } from '../http/validation.js';
 import { attachmentType } from './attachments.js';
 import { parseAddress } from './mock.js';
+import { processingByMessageId, type EmailProcessing } from './processing.js';
 
 /** Límite de los adjuntos de un email cargado (en base64 ocupa ~33 % más). */
 const MAX_ATTACHMENTS_BYTES = 15 * 1024 * 1024;
@@ -27,6 +28,12 @@ const uploadSchema = z.object({
     )
     .default([]),
 });
+
+/** Email cargado que todavía no leyó ninguna revisión de la casilla. */
+const PENDING: EmailProcessing = {
+  status: 'pendiente', clientId: null, clientName: null, processedAt: null, classification: null,
+  validationResult: null, validationRule: null, changes: [], attachments: [],
+};
 
 /** RF-204: fuera del modo mock la casilla simulada no existe. */
 function mockOnly(ctx: AppContext) {
@@ -65,8 +72,14 @@ export function mockMailboxRoutes(ctx: AppContext): Router {
       .from(mockMailboxAttachments)
       .orderBy(asc(mockMailboxAttachments.id))
       .all();
+    // Qué hizo el agente con cada email recibido; los enviados no tienen procesamiento.
+    const processing = processingByMessageId(ctx.db, emails.filter((e) => e.direction === 'recibido').map((e) => e.messageId));
     res.json({
-      emails: emails.map((e) => ({ ...e, attachments: attachments.filter((a) => a.emailId === e.id) })),
+      emails: emails.map((e) => ({
+        ...e,
+        attachments: attachments.filter((a) => a.emailId === e.id),
+        processing: e.direction === 'recibido' ? (processing.get(e.messageId) ?? PENDING) : null,
+      })),
     });
   });
 

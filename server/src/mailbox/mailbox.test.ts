@@ -239,6 +239,38 @@ describe('ingreso de emails nuevos', () => {
 });
 
 describe('casilla simulada (API)', () => {
+  it('muestra qué hizo el agente con cada email recibido', async () => {
+    app = await startTestApp({ mockMode: true });
+    const admin = await app.loginAs('admin');
+    app.db.run(`insert into clients (business_name, cuit, billing_email, iva_condition, status, created_at, updated_at)
+      values ('Los Andes', '30711111111', 'pagos@losandes.com', 1, 'activo', 0, 0)`);
+    app.db.run(`insert into invoices (client_id, period, status, voucher_type, point_of_sale, number, cae, cae_due_date, issue_date,
+      service_from, service_to, payment_due_date, total_cents, client_business_name, client_cuit, client_iva_condition, created_at, updated_at)
+      values (1, '2026-10', 'pendiente_pago', 11, 1, 7, '1', '2026-10-25', '2026-10-15', '2026-10-01', '2026-10-31', '2026-10-31',
+      1500050, 'Los Andes', '30711111111', 1, 0, 0)`);
+    await upload(admin, { subject: 'Pago' });
+    await upload(admin, { from: 'otro@x.com', subject: 'Consulta', attachments: [] });
+    const before = (await app.request('GET', '/api/mock-mailbox', { cookie: admin })).body.emails;
+    expect(before.map((e: any) => e.processing.status)).toEqual(['pendiente', 'pendiente']);
+
+    const { runMailboxCheck } = await import('../payments/check.js');
+    const { MockClassifier } = await import('../classifier/mock.js');
+    await runMailboxCheck({
+      db: app.db, now: () => new Date(), mailbox: new MockMailbox(app.db), systemMailbox: 'aldebaran-mock@gmail.com',
+      classifier: new MockClassifier(), sleep: async () => {},
+    });
+
+    const after = (await app.request('GET', '/api/mock-mailbox', { cookie: admin })).body.emails;
+    const bySubject = Object.fromEntries(after.map((e: any) => [e.subject, e.processing]));
+    expect(bySubject.Consulta).toMatchObject({ status: 'aviso', clientName: null });
+    expect(bySubject.Pago).toMatchObject({
+      status: 'procesado', clientName: 'Los Andes', classification: 'si', validationResult: 'pago_recibido', validationRule: 'RF-134',
+      changes: [{ pointOfSale: 1, number: 7, to: 'pago_recibido', reason: null }],
+      attachments: [{ filename: 'pago_30711111111_15000.50.pdf', valid: true, classification: 'si', cuit: '30711111111', amount: '15000.50', error: null }],
+    });
+  });
+
+
   let app: TestApp;
   afterEach(async () => {
     await app?.close();

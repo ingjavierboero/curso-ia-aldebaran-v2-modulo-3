@@ -1,15 +1,12 @@
 import { asc, isNull } from 'drizzle-orm';
-import type { Db } from '../db/index.js';
 import { receivedEmails } from '../db/schema.js';
 import { ingestNewEmails } from '../mailbox/ingest.js';
 import type { Mailbox } from '../mailbox/index.js';
-import { processReceivedEmail, type EmailOutcome } from './process-email.js';
+import { processReceivedEmail, type EmailOutcome, type EmailProcessingDeps } from './process-email.js';
 
-export interface MailboxCheckDeps {
-  db: Db;
+export interface MailboxCheckDeps extends EmailProcessingDeps {
   mailbox: Mailbox;
   systemMailbox: string;
-  now: () => Date;
 }
 
 export interface MailboxCheckResult {

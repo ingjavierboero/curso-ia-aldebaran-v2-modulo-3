@@ -13,9 +13,11 @@
     "billing:run": "tsx src/billing/run.ts",
     "email:check": "tsx src/email/check.ts",
     "mailbox:check": "tsx src/mailbox/check.ts",
-    "mailbox:run": "tsx src/payments/run.ts"
+    "mailbox:run": "tsx src/payments/run.ts",
+    "classify:check": "tsx src/classifier/check.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.135.0",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^13.0.3",
     "cookie-parser": "^1.4.7",

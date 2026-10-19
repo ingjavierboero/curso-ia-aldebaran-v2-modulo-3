@@ -4,6 +4,7 @@ import { openDatabase, type DatabaseHandle, type Db } from '../db/index.js';
 import { clientEvents, clients, invoices, receivedAttachments, receivedEmails } from '../db/schema.js';
 import type { IncomingEmail, Mailbox } from '../mailbox/index.js';
 import { runMailboxCheck } from './check.js';
+import { MockClassifier } from '../classifier/mock.js';
 import { processReceivedEmail } from './process-email.js';
 
 let handle: DatabaseHandle;
@@ -32,7 +33,8 @@ function addEmail(from: string, attachments: { filename: string; valid: boolean 
   }
   return email;
 }
-const process = (emailId: number) => processReceivedEmail({ db, now: () => now }, emailId);
+const deps = () => ({ db, now: () => now, classifier: new MockClassifier(), sleep: async () => {} });
+const process = (emailId: number) => processReceivedEmail(deps(), emailId);
 const getEmail = (id: number) => db.select().from(receivedEmails).where(eq(receivedEmails.id, id)).get()!;
 
 describe('identificación del remitente', () => {
@@ -49,7 +51,7 @@ describe('identificación del remitente', () => {
     const client = addClient({ billingEmail: 'pagos@losandes.com' });
     const email = addEmail('Pagos@LosAndes.com');
 
-    expect(await process(email.id)).toEqual({ kind: 'cliente', clientId: client.id });
+    expect(await process(email.id)).toEqual({ kind: 'cliente', clientId: client.id, classification: null });
     expect(getEmail(email.id)).toMatchObject({ clientId: client.id, notice: null });
   });
 
@@ -74,7 +76,7 @@ describe('identificación del remitente', () => {
 
   it('procesa igual los emails de un cliente Inactivo (RF-118)', async () => {
     const client = addClient({ status: 'inactivo' });
-    expect(await process(addEmail('pagos@losandes.com').id)).toEqual({ kind: 'cliente', clientId: client.id });
+    expect(await process(addEmail('pagos@losandes.com').id)).toMatchObject({ kind: 'cliente', clientId: client.id });
   });
 
   it('tras cambiar el email de facturación, la dirección anterior ya no se reconoce (AC-35)', async () => {
@@ -82,7 +84,7 @@ describe('identificación del remitente', () => {
     db.update(clients).set({ billingEmail: 'cobranzas@losandes.com' }).where(eq(clients.id, client.id)).run();
 
     expect(await process(addEmail('pagos@losandes.com').id)).toEqual({ kind: 'aviso' });
-    expect(await process(addEmail('cobranzas@losandes.com').id)).toEqual({ kind: 'cliente', clientId: client.id });
+    expect(await process(addEmail('cobranzas@losandes.com').id)).toMatchObject({ kind: 'cliente', clientId: client.id });
   });
 
   it('no procesa dos veces el mismo email', async () => {
@@ -91,7 +93,7 @@ describe('identificación del remitente', () => {
     await process(email.id);
 
     expect(await process(email.id)).toEqual({ kind: 'ya_procesado' });
-    expect(db.select().from(clientEvents).all()).toHaveLength(1);
+    expect(db.select().from(clientEvents).all().filter((e) => e.type === 'email_recibido')).toHaveLength(1);
   });
 });
 
@@ -111,7 +113,7 @@ describe('revisión de la casilla', () => {
     }];
     const mailbox: Mailbox = { fetchSince: async (since) => inbox.filter((e) => e.date >= since) };
 
-    const result = await runMailboxCheck({ db, mailbox, systemMailbox: 'aldebaran@gmail.com', now: () => now });
+    const result = await runMailboxCheck({ ...deps(), mailbox, systemMailbox: 'aldebaran@gmail.com' });
 
     expect(result.ingested).toBe(1);
     expect(result.outcomes.map((o) => o.outcome.kind).sort()).toEqual(['aviso', 'cliente']);

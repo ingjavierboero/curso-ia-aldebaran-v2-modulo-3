@@ -23,7 +23,8 @@
     "billing:run": "npm run billing:run -w server --",
     "email:check": "npm run email:check -w server --",
     "mailbox:check": "npm run mailbox:check -w server --",
-    "mailbox:run": "npm run mailbox:run -w server --"
+    "mailbox:run": "npm run mailbox:run -w server --",
+    "classify:check": "npm run classify:check -w server --"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

@@ -4,6 +4,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { loadConfig, ROOT_DIR, TIMEZONE } from '../config.js';
 import { openDatabase } from '../db/index.js';
+import { defaultSleep } from '../billing/process.js';
+import { createClassifier } from '../classifier/index.js';
 import { createMailbox } from '../mailbox/index.js';
 import { runMailboxCheck } from './check.js';
 
@@ -22,10 +24,17 @@ try {
       mailbox: createMailbox(config, db),
       systemMailbox: config.systemMailbox,
       now: () => new Date(),
+      classifier: createClassifier(config),
+      sleep: defaultSleep,
     });
     console.log(`  ${result.ingested} emails nuevos.`);
     for (const { emailId, outcome } of result.outcomes) {
-      const detail = outcome.kind === 'cliente' ? `del cliente ${outcome.clientId}` : outcome.kind === 'aviso' ? 'aviso (remitente desconocido)' : 'ya procesado';
+      const detail =
+        outcome.kind === 'cliente'
+          ? `del cliente ${outcome.clientId}, clasificación: ${outcome.classification ?? 'sin adjuntos válidos'}`
+          : outcome.kind === 'aviso'
+            ? 'aviso (remitente desconocido)'
+            : 'ya procesado';
       console.log(`  email ${emailId}: ${detail}`);
     }
   } finally {

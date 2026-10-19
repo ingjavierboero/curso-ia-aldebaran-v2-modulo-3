@@ -131,6 +131,7 @@ export const CLIENT_EVENT_TYPES = [
   'factura_generada',
   'email_enviado',
   'email_recibido',
+  'clasificacion_email',
   'error_proceso',
 ] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
@@ -484,6 +485,11 @@ export const receivedEmails = sqliteTable(
     notice: text('notice', { enum: ['pendiente', 'revisado'] }),
     noticeReviewedAt: integer('notice_reviewed_at', { mode: 'timestamp_ms' }),
     noticeReviewedBy: integer('notice_reviewed_by').references(() => users.id),
+    /**
+     * RF-123: clasificación del email con adjuntos válidos, a partir de la de sus
+     * adjuntos; null si no tiene ninguno (RF-115) o es un aviso.
+     */
+    classification: text('classification', { enum: ['si', 'no', 'dudoso', 'erroneo'] }),
     /** Terminó de procesarse; null mientras falta (se retoma en la siguiente revisión). */
     processedAt: integer('processed_at', { mode: 'timestamp_ms' }),
   },
@@ -506,6 +512,14 @@ export const receivedAttachments = sqliteTable('received_attachments', {
   /** Es un adjunto a procesar: imagen o PDF y no embebido (RF-116, RF-117). */
   valid: integer('valid', { mode: 'boolean' }).notNull(),
   content: blob('content', { mode: 'buffer' }).notNull(),
+  /** RF-119: clasificación del LLM; null si no se clasificó o el procesamiento fue erróneo. */
+  classification: text('classification', { enum: ['si', 'no', 'dudoso'] }),
+  /** RNF-02: el procesamiento falló después de los reintentos. */
+  processingError: text('processing_error'),
+  /** RF-120 a RF-122: CUIT del ordenante (11 dígitos) o null si no se pudo extraer. */
+  extractedCuit: text('extracted_cuit'),
+  /** RF-120: monto pagado como decimal con punto ("15000.50"), o null si no se pudo extraer. */
+  extractedAmount: text('extracted_amount'),
 });
 
 /** Estado de la revisión de la casilla (una sola fila). */

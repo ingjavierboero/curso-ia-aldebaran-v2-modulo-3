@@ -41,6 +41,7 @@ interface FormValues {
   retryWaitMinutes: number;
   pointOfSale: number;
   issuerBusinessName?: string;
+  issuerTradeName?: string;
   issuerAddress?: string;
   issuerIvaCondition?: string;
   issuerGrossIncomeNumber?: string;
@@ -56,6 +57,7 @@ function toFormValues(s: Settings): FormValues {
     retryWaitMinutes: s.retryWaitMinutes,
     pointOfSale: s.pointOfSale,
     issuerBusinessName: s.issuerBusinessName ?? undefined,
+    issuerTradeName: s.issuerTradeName ?? undefined,
     issuerAddress: s.issuerAddress ?? undefined,
     issuerIvaCondition: s.issuerIvaCondition ?? undefined,
     issuerGrossIncomeNumber: s.issuerGrossIncomeNumber ?? undefined,
@@ -95,6 +97,7 @@ export function SettingsPage() {
         retryWaitMinutes: values.retryWaitMinutes,
         pointOfSale: values.pointOfSale,
         issuerBusinessName: textOrNull(values.issuerBusinessName),
+        issuerTradeName: textOrNull(values.issuerTradeName),
         issuerAddress: textOrNull(values.issuerAddress),
         issuerIvaCondition: values.issuerIvaCondition ?? null,
         issuerGrossIncomeNumber: textOrNull(values.issuerGrossIncomeNumber),
@@ -122,13 +125,20 @@ export function SettingsPage() {
       <Spin spinning={!current && !error}>
         <Form<FormValues> form={form} layout="vertical" disabled={!isAdmin} onFinish={handleSave} requiredMark={false}>
           <Sections>
-            <Card title="Empresa emisora" extra={<Typography.Text type="secondary">Se muestra en el PDF de cada factura</Typography.Text>}>
+            <Card title="Empresa emisora" extra={<Typography.Text type="secondary">Se muestra en el PDF de cada factura y en los emails</Typography.Text>}>
               <Grid>
                 <Form.Item label="CUIT" htmlFor="issuerCuit" tooltip="Sale de la variable de entorno ARCA_CUIT.">
                   <Input id="issuerCuit" value={current ? formatCuit(current.issuerCuit) : ''} disabled />
                 </Form.Item>
                 <Form.Item label="Razón social" name="issuerBusinessName">
                   <Input />
+                </Form.Item>
+                <Form.Item
+                  label="Nombre de fantasía"
+                  name="issuerTradeName"
+                  tooltip="Remitente y firma de los emails a los clientes. No va en el PDF. Si está vacío, se usa la razón social."
+                >
+                  <Input placeholder="Opcional" />
                 </Form.Item>
                 <Form.Item label="Domicilio comercial" name="issuerAddress">
                   <Input />

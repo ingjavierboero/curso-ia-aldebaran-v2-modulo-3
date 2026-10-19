@@ -8,6 +8,8 @@ export interface SettingsInput {
   retryWaitMinutes: number;
   pointOfSale: number;
   issuerBusinessName: string | null;
+  /** RF-215: firmante y remitente de los emails; no va en el PDF. */
+  issuerTradeName: string | null;
   issuerAddress: string | null;
   issuerIvaCondition: string | null;
   issuerGrossIncomeNumber: string | null;

@@ -17,3 +17,9 @@ export class KeyedMutex {
     return result;
   }
 }
+
+/**
+ * Mutex de ARCA de todo el proceso: lo comparten el proceso de facturación y los
+ * reintentos manuales, para que nunca pidan número y CAE a la vez en un punto de venta.
+ */
+export const arcaMutex = new KeyedMutex();

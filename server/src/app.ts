@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import { requireAuth } from './auth/middleware.js';
 import { authRoutes, hasUsers, publicAuthRoutes } from './auth/routes.js';
 import { billingRoutes } from './billing/routes.js';
+import type { OperationsDeps } from './billing/deps.js';
 import type { BillingRunner } from './billing/runner.js';
 import { clientRoutes } from './clients/routes.js';
 import type { Db } from './db/index.js';
@@ -24,6 +25,8 @@ export interface AppContext {
   /** Casilla del sistema (GMAIL_USER o la simulada en modo mock). */
   systemMailbox: string;
   billing: BillingRunner;
+  /** Dependencias de los reintentos manuales de errores de proceso. */
+  operations: () => OperationsDeps;
 }
 
 export interface AppOptions {
@@ -34,6 +37,7 @@ export interface AppOptions {
   issuerCuit?: string;
   systemMailbox?: string;
   billing: BillingRunner;
+  operations: () => OperationsDeps;
 }
 
 export function createApp(options: AppOptions) {
@@ -45,6 +49,7 @@ export function createApp(options: AppOptions) {
     issuerCuit: options.issuerCuit ?? '20111111112',
     systemMailbox: options.systemMailbox ?? 'aldebaran-mock@gmail.com',
     billing: options.billing,
+    operations: options.operations,
   };
 
   const app = express();

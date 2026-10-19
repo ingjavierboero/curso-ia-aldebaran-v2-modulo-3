@@ -3,7 +3,7 @@ import type { Config } from '../config.js';
 import type { Db } from '../db/index.js';
 import { createMailer } from '../email/index.js';
 import { fetchBlueSellRate } from '../exchange/dolarhoy.js';
-import { deliverInvoiceEmail } from '../invoices/email.js';
+import { deliverInvoiceEmail, type InvoiceEmailDeps } from '../invoices/email.js';
 import type { Invoice } from './generate.js';
 import { defaultSleep, type BillingDeps } from './process.js';
 
@@ -38,5 +38,18 @@ export function createBillingDeps(
       );
       options.afterInvoice?.(invoice);
     },
+  };
+}
+
+/** Lo que necesitan las acciones manuales sobre los errores de proceso (RF-176 a RF-178). */
+export interface OperationsDeps {
+  billing: BillingDeps;
+  invoiceEmail: InvoiceEmailDeps;
+}
+
+export function createOperationsDeps(config: Config, db: Db, now: () => Date = () => new Date()): OperationsDeps {
+  return {
+    billing: createBillingDeps(config, db, { now }),
+    invoiceEmail: { db, mailer: createMailer(config, db, now), issuerCuit: config.arca.cuit, mockMode: config.mockMode },
   };
 }

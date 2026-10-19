@@ -2,6 +2,8 @@ import { and, asc, desc, eq, type SQL } from 'drizzle-orm';
 import { Router } from 'express';
 import { z } from 'zod';
 import type { AppContext } from '../app.js';
+import { currentUser, requireRole } from '../auth/middleware.js';
+import { changeInvoiceStatus, InvoiceActionError } from './actions.js';
 import { INVOICE_STATUSES, invoiceItems, invoices } from '../db/schema.js';
 import { getSettings } from '../settings/settings.js';
 import { formatVoucherNumber, renderInvoicePdf } from './pdf.js';
@@ -48,6 +50,19 @@ export function invoiceRoutes(ctx: AppContext): Router {
       .all();
     res.json({ invoices: rows });
   });
+
+  // RF-143, RF-145, RF-147: un Admin o Editor pasa una factura a Pagada.
+  // RF-144, RF-146: o la devuelve a Pendiente de pago.
+  for (const [path, to] of [['mark-paid', 'pagada'], ['return-to-pending', 'pendiente_pago']] as const) {
+    router.post(`/:id/${path}`, requireRole('admin', 'editor'), (req, res) => {
+      try {
+        res.json({ invoice: changeInvoiceStatus(ctx.db, Number(req.params.id), to, currentUser(req).id, ctx.now()) });
+      } catch (error) {
+        if (!(error instanceof InvoiceActionError)) throw error;
+        res.status(error.message === 'La factura no existe.' ? 404 : 409).json({ error: error.message });
+      }
+    });
+  }
 
   // RF-162: cualquier perfil descarga el PDF de una factura emitida.
   router.get('/:id/pdf', async (req, res) => {

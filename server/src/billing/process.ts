@@ -5,7 +5,7 @@ import { billingPeriods, clientProducts, clients, processErrors, products } from
 import { resolveUsdRate, type RateReader, type ResolvedRate } from '../exchange/rates.js';
 import { getSettings } from '../settings/settings.js';
 import { generateInvoice, type Invoice } from './generate.js';
-import { KeyedMutex } from './mutex.js';
+import { arcaMutex } from './mutex.js';
 import { recordProcessError } from './process-errors.js';
 
 export interface BillingDeps {
@@ -67,7 +67,7 @@ export async function runBillingProcess(
     return rate;
   };
 
-  const generateDeps = { db, arca: deps.arca, now, pointOfSale: config.pointOfSale, getRate, arcaMutex: new KeyedMutex() };
+  const generateDeps = { db, arca: deps.arca, now, pointOfSale: config.pointOfSale, getRate, arcaMutex };
   const summary: BillingSummary = { period, generated: 0, failed: 0, skipped: 0 };
 
   // RF-85, RF-87: cada cliente sigue su propio ritmo; los reintentos de uno no demoran a otro.

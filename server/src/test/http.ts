@@ -4,6 +4,7 @@ import { createApp } from '../app.js';
 import { MockArcaClient } from '../arca/mock.js';
 import { hashPassword } from '../auth/password.js';
 import { BillingRunner } from '../billing/runner.js';
+import { MockMailer } from '../email/mock.js';
 import { openDatabase, type Db } from '../db/index.js';
 import { users, type UserRole } from '../db/schema.js';
 
@@ -45,7 +46,12 @@ export async function startTestApp(
     () => ({ db: database.db, arca: new MockArcaClient(database.db), readRate: async () => 150_000, now, sleep: async () => {} }),
     now,
   );
-  const server: Server = createApp({ db: database.db, ...options, billing }).listen(0, '127.0.0.1');
+  const operations = () => {
+    const billingDeps = { db: database.db, arca: new MockArcaClient(database.db), readRate: async () => 150_000, now, sleep: async () => {} };
+    const mailer = new MockMailer(database.db, 'aldebaran-mock@gmail.com', now);
+    return { billing: billingDeps, invoiceEmail: { db: database.db, mailer, issuerCuit: '20111111112', mockMode: true } };
+  };
+  const server: Server = createApp({ db: database.db, ...options, billing, operations }).listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
   const { port } = server.address() as AddressInfo;
 

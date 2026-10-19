@@ -2,7 +2,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { createApp } from './app.js';
 import { ConfigError, loadConfig, ROOT_DIR, TIMEZONE } from './config.js';
-import { createBillingDeps } from './billing/deps.js';
+import { createBillingDeps, createOperationsDeps } from './billing/deps.js';
 import { BillingRunner } from './billing/runner.js';
 import { openDatabase } from './db/index.js';
 import { startScheduler } from './jobs/scheduler.js';
@@ -42,6 +42,7 @@ const server = createApp({
   issuerCuit: config.arca.cuit,
   systemMailbox: config.systemMailbox,
   billing,
+  operations: () => createOperationsDeps(config, database.db),
   secureCookies: process.env.NODE_ENV === 'production',
 }).listen(config.port, () => {
   const mode = config.mockMode ? 'modo mock: ARCA, LLM y email simulados' : 'modo real';

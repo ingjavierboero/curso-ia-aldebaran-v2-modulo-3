@@ -1,8 +1,11 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql, type SQL } from 'drizzle-orm';
 import { Router } from 'express';
 import type { AppContext } from '../app.js';
+import { currentUser, requireRole } from '../auth/middleware.js';
+import { ProcessErrorActionError, resolveProcessError, retryProcessError } from '../billing/retry-error.js';
 import type { Db } from '../db/index.js';
-import { clients, invoiceEmails, invoices, processErrors, receivedAttachments, receivedEmails } from '../db/schema.js';
+import { z } from 'zod';
+import { clientEvents, clients, invoiceEmails, invoices, processErrors, receivedAttachments, receivedEmails, users } from '../db/schema.js';
 
 /** Emails recibidos con sus adjuntos (sin el contenido) y el resultado de cada uno. */
 function emailsWithAttachments(db: Db, emailIds: number[]) {
@@ -41,7 +44,13 @@ function emailsWithAttachments(db: Db, emailIds: number[]) {
   return emails.map((e) => ({ ...e, attachments: attachments.filter((a) => a.emailId === e.id) }));
 }
 
-/** Interfaz de revisión (RF-141, RF-142, RF-175). Todos los perfiles la ven. */
+const resolvedQuerySchema = z.object({
+  clientId: z.coerce.number().int().positive().optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+/** Interfaz de revisión (RF-141, RF-142, RF-175, RF-216). Todos los perfiles la ven. */
 export function reviewRoutes(ctx: AppContext): Router {
   const router = Router();
 
@@ -85,6 +94,79 @@ export function reviewRoutes(ctx: AppContext): Router {
     });
   });
 
+  /**
+   * RF-216: decisiones de los usuarios sobre pagos informados (facturas que pasaron de
+   * Pago recibido o Revisión manual a Pagada o Pendiente de pago), de la más reciente a
+   * la más antigua, con los emails que la factura tenía asociados al momento de decidir.
+   */
+  router.get('/resolved', (req, res) => {
+    const query = resolvedQuerySchema.safeParse(req.query);
+    if (!query.success) {
+      res.status(400).json({ error: 'Filtro inválido.' });
+      return;
+    }
+    const { clientId, from, to } = query.data;
+    const conditions: SQL[] = [
+      eq(clientEvents.type, 'cambio_estado_factura'),
+      isNotNull(clientEvents.userId),
+      sql`json_extract(${clientEvents.data}, '$.from') in ('pago_recibido', 'revision_manual')`,
+      sql`json_extract(${clientEvents.data}, '$.to') in ('pagada', 'pendiente_pago')`,
+    ];
+    if (clientId) conditions.push(eq(clientEvents.clientId, clientId));
+    // Días completos en hora de Argentina (sin horario de verano: siempre -03:00).
+    if (from) conditions.push(gte(clientEvents.createdAt, new Date(`${from}T00:00:00-03:00`)));
+    if (to) conditions.push(lt(clientEvents.createdAt, new Date(new Date(`${to}T00:00:00-03:00`).getTime() + 86_400_000)));
+
+    const decisions = ctx.db
+      .select({
+        id: clientEvents.id,
+        decidedAt: clientEvents.createdAt,
+        data: clientEvents.data,
+        userName: users.name,
+        clientId: clientEvents.clientId,
+        clientName: clients.businessName,
+      })
+      .from(clientEvents)
+      .innerJoin(clients, eq(clients.id, clientEvents.clientId))
+      .leftJoin(users, eq(users.id, clientEvents.userId))
+      .where(and(...conditions))
+      .orderBy(desc(clientEvents.createdAt), desc(clientEvents.id))
+      .limit(500)
+      .all();
+
+    const invoiceIds = [...new Set(decisions.map((d) => (d.data as { invoiceId: number }).invoiceId))];
+    const invoiceRows = invoiceIds.length
+      ? ctx.db
+          .select({ id: invoices.id, period: invoices.period, pointOfSale: invoices.pointOfSale, number: invoices.number, totalCents: invoices.totalCents, status: invoices.status })
+          .from(invoices)
+          .where(inArray(invoices.id, invoiceIds))
+          .all()
+      : [];
+    const links = invoiceIds.length ? ctx.db.select().from(invoiceEmails).where(inArray(invoiceEmails.invoiceId, invoiceIds)).all() : [];
+    const emails = emailsWithAttachments(ctx.db, [...new Set(links.map((l) => l.emailId))]);
+
+    res.json({
+      resolved: decisions.map((d) => {
+        const data = d.data as { invoiceId: number; from: string; to: string; previousReason?: string | null };
+        const invoice = invoiceRows.find((i) => i.id === data.invoiceId);
+        const linked = new Set(links.filter((l) => l.invoiceId === data.invoiceId).map((l) => l.emailId));
+        return {
+          id: d.id,
+          decidedAt: d.decidedAt,
+          decision: data.to,
+          previousStatus: data.from,
+          previousReason: data.previousReason ?? null,
+          userName: d.userName,
+          clientId: d.clientId,
+          clientName: d.clientName,
+          invoice,
+          // Los comprobantes que había hasta la decisión, no los que llegaron después.
+          emails: emails.filter((e) => linked.has(e.id) && e.receivedAt <= d.decidedAt),
+        };
+      }),
+    });
+  });
+
   // RF-142: avisos Pendientes con remitente, asunto, fecha y adjuntos.
   router.get('/notices', (_req, res) => {
     const ids = ctx.db
@@ -120,6 +202,45 @@ export function reviewRoutes(ctx: AppContext): Router {
       .orderBy(desc(processErrors.createdAt))
       .all();
     res.json({ errors: rows });
+  });
+
+  const canEdit = requireRole('admin', 'editor');
+
+  // RF-148: un Admin o Editor marca un aviso como Revisado, con quién lo hizo (AC-153).
+  router.post('/notices/:id/reviewed', canEdit, (req, res) => {
+    const notice = ctx.db
+      .update(receivedEmails)
+      .set({ notice: 'revisado', noticeReviewedAt: ctx.now(), noticeReviewedBy: currentUser(req).id })
+      .where(and(eq(receivedEmails.id, Number(req.params.id)), eq(receivedEmails.notice, 'pendiente')))
+      .returning({ id: receivedEmails.id })
+      .get();
+    if (!notice) {
+      res.status(404).json({ error: 'El aviso no existe o ya está Revisado.' });
+      return;
+    }
+    res.json({ notice });
+  });
+
+  // RF-180: marcar un error de proceso como Resuelto sin reintentarlo (AC-191).
+  router.post('/errors/:id/resolve', canEdit, (req, res) => {
+    try {
+      res.json({ error: resolveProcessError(ctx.db, Number(req.params.id), currentUser(req).id, ctx.now()) });
+    } catch (error) {
+      if (!(error instanceof ProcessErrorActionError)) throw error;
+      res.status(409).json({ error: error.message });
+    }
+  });
+
+  // RF-176 a RF-179: reintento manual con un único intento.
+  router.post('/errors/:id/retry', canEdit, async (req, res) => {
+    try {
+      const result = await retryProcessError(ctx.operations(), Number(req.params.id), currentUser(req).id);
+      // RF-182: si falla, el usuario ve el error; el error de proceso sigue Pendiente.
+      res.status(result.ok ? 200 : 502).json(result.ok ? { message: result.message } : { error: result.message });
+    } catch (error) {
+      if (!(error instanceof ProcessErrorActionError)) throw error;
+      res.status(409).json({ error: error.message });
+    }
   });
 
   return router;

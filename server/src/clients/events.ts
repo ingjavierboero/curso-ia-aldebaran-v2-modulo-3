@@ -11,6 +11,8 @@ export function recordClientEvent(
   type: ClientEventType,
   userId: number | null,
   data: Record<string, unknown> | null,
+  /** Momento del evento; por defecto, ahora. */
+  createdAt?: Date,
 ): void {
-  db.insert(clientEvents).values({ clientId, type, userId, data }).run();
+  db.insert(clientEvents).values({ clientId, type, userId, data, ...(createdAt ? { createdAt } : {}) }).run();
 }

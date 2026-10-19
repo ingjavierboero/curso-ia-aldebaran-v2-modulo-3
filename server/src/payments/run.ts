@@ -4,9 +4,7 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { loadConfig, ROOT_DIR, TIMEZONE } from '../config.js';
 import { openDatabase } from '../db/index.js';
-import { defaultSleep } from '../billing/process.js';
-import { createClassifier } from '../classifier/index.js';
-import { createMailbox } from '../mailbox/index.js';
+import { createMailboxCheckDeps } from './deps.js';
 import { runMailboxCheck } from './check.js';
 
 process.env.TZ = TIMEZONE;
@@ -19,14 +17,7 @@ try {
   try {
     console.log(`Revisando la casilla ${config.systemMailbox} (${config.mockMode ? 'casilla simulada' : 'Gmail'})…`);
     console.log(`  base de datos: ${path.relative(ROOT_DIR, config.databasePath)}`);
-    const result = await runMailboxCheck({
-      db,
-      mailbox: createMailbox(config, db),
-      systemMailbox: config.systemMailbox,
-      now: () => new Date(),
-      classifier: createClassifier(config),
-      sleep: defaultSleep,
-    });
+    const result = await runMailboxCheck(createMailboxCheckDeps(config, db));
     console.log(`  ${result.ingested} emails nuevos.`);
     for (const { emailId, outcome } of result.outcomes) {
       const decision = outcome.kind === 'cliente' ? outcome.decision : null;

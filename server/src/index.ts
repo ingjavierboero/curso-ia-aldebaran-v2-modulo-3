@@ -6,6 +6,8 @@ import { createBillingDeps } from './billing/deps.js';
 import { BillingRunner } from './billing/runner.js';
 import { openDatabase } from './db/index.js';
 import { startScheduler } from './jobs/scheduler.js';
+import { createMailboxCheckDeps } from './payments/deps.js';
+import { MailboxRunner } from './payments/runner.js';
 
 // RNF-12: todas las fechas del proceso se rigen por la hora de Argentina.
 process.env.TZ = TIMEZONE;
@@ -49,7 +51,8 @@ const server = createApp({
 });
 
 // Procesos automáticos: solo con SCHEDULER_ENABLED (en modo mock, activados por defecto).
-const scheduler = config.schedulerEnabled ? startScheduler(billing) : null;
+const mailbox = new MailboxRunner(database.db, () => createMailboxCheckDeps(config, database.db));
+const scheduler = config.schedulerEnabled ? startScheduler(billing, mailbox) : null;
 
 function shutdown() {
   scheduler?.stop();

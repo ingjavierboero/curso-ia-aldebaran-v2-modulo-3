@@ -12,7 +12,8 @@
     "arca:check": "tsx src/arca/check.ts",
     "billing:run": "tsx src/billing/run.ts",
     "email:check": "tsx src/email/check.ts",
-    "mailbox:check": "tsx src/mailbox/check.ts"
+    "mailbox:check": "tsx src/mailbox/check.ts",
+    "mailbox:run": "tsx src/payments/run.ts"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

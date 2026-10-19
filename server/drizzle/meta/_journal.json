@@ -71,6 +71,13 @@
       "when": 1792369479687,
       "tag": "0009_emails_recibidos",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1792370214295,
+      "tag": "0010_remitente",
+      "breakpoints": true
     }
   ]
 }

@@ -130,6 +130,7 @@ export const CLIENT_EVENT_TYPES = [
   'desasignacion_producto',
   'factura_generada',
   'email_enviado',
+  'email_recibido',
   'error_proceso',
 ] as const;
 export type ClientEventType = (typeof CLIENT_EVENT_TYPES)[number];
@@ -477,8 +478,20 @@ export const receivedEmails = sqliteTable(
     text: text('text').notNull(),
     receivedAt: integer('received_at', { mode: 'timestamp_ms' }).notNull(),
     ingestedAt: integer('ingested_at', { mode: 'timestamp_ms' }).notNull(),
+    /** Cliente cuyo email de facturación coincide con el remitente (RF-111). */
+    clientId: integer('client_id').references(() => clients.id),
+    /** RF-113: aviso (remitente que no es un cliente), Pendiente hasta que se revisa (RF-148). */
+    notice: text('notice', { enum: ['pendiente', 'revisado'] }),
+    noticeReviewedAt: integer('notice_reviewed_at', { mode: 'timestamp_ms' }),
+    noticeReviewedBy: integer('notice_reviewed_by').references(() => users.id),
+    /** Terminó de procesarse; null mientras falta (se retoma en la siguiente revisión). */
+    processedAt: integer('processed_at', { mode: 'timestamp_ms' }),
   },
-  (t) => [uniqueIndex('received_emails_message_id_unique').on(t.messageId), index('received_emails_received_at_idx').on(t.receivedAt)],
+  (t) => [
+    uniqueIndex('received_emails_message_id_unique').on(t.messageId),
+    index('received_emails_received_at_idx').on(t.receivedAt),
+    index('received_emails_client_idx').on(t.clientId),
+  ],
 );
 
 export const receivedAttachments = sqliteTable('received_attachments', {

@@ -9,6 +9,7 @@ import type { Db } from './db/index.js';
 import { invoiceRoutes } from './invoices/routes.js';
 import { mockMailboxRoutes } from './mailbox/mock-routes.js';
 import { productRoutes } from './products/routes.js';
+import { receivedEmailRoutes, reviewRoutes } from './review/routes.js';
 import { settingsRoutes } from './settings/routes.js';
 
 export interface AppContext {
@@ -70,6 +71,8 @@ export function createApp(options: AppOptions) {
   app.use('/api/invoices', invoiceRoutes(ctx));
   app.use('/api/billing', billingRoutes(ctx));
   app.use('/api/mock-mailbox', mockMailboxRoutes(ctx));
+  app.use('/api/review', reviewRoutes(ctx));
+  app.use('/api/received-emails', receivedEmailRoutes(ctx));
   app.use('/api/settings', settingsRoutes(ctx));
 
   app.use('/api', (_req, res) => {

@@ -1,5 +1,5 @@
-import { FilePdfOutlined } from '@ant-design/icons';
-import { App, DatePicker, Select, Table, Tag, Tooltip, Typography } from 'antd';
+import { CheckCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
+import { App, DatePicker, Select, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs, { type Dayjs } from 'dayjs';
 import { useCallback, useEffect, useState } from 'react';
@@ -11,10 +11,13 @@ import {
   INVOICE_STATUS_LABELS,
   invoicePdfUrl,
   listInvoices,
+  markInvoicePaid,
   type InvoiceRow,
   type InvoiceStatus,
 } from '../../api/invoices';
+import { TableAction } from '../../components/TableAction';
 import { formatMoney } from '../../domain/money';
+import { useCanEdit } from '../../stores/session';
 import { BillingCard } from './BillingCard';
 
 const Toolbar = styled.div`
@@ -31,6 +34,7 @@ const formatPeriod = (period: string) => dayjs(`${period}-01`).format('MMMM YYYY
 /** RF-160, RF-162, RF-168: listado de facturas con filtros y descarga del PDF. */
 export function InvoicesPage() {
   const { message } = App.useApp();
+  const canEdit = useCanEdit();
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,19 +81,40 @@ export function InvoicesPage() {
       ),
     },
     {
-      title: 'PDF',
-      key: 'pdf',
+      title: 'Acciones',
+      key: 'actions',
       align: 'center',
-      width: 70,
+      width: 100,
       render: (_, i) => (
-        <Tooltip title="Descargar PDF">
-          <a href={invoicePdfUrl(i.id)} target="_blank" rel="noreferrer" aria-label="Descargar PDF">
-            <FilePdfOutlined />
-          </a>
-        </Tooltip>
+        <Space size={4}>
+          <Tooltip title="Descargar PDF">
+            <a href={invoicePdfUrl(i.id)} target="_blank" rel="noreferrer" aria-label="Descargar PDF">
+              <FilePdfOutlined />
+            </a>
+          </Tooltip>
+          {/* RF-147: desde el listado, una factura Pendiente de pago pasa a Pagada. */}
+          {canEdit && i.status === 'pendiente_pago' && (
+            <TableAction
+              label="Marcar como Pagada"
+              icon={<CheckCircleOutlined />}
+              confirm={`¿Marcar la factura C ${formatVoucherNumber(i.pointOfSale, i.number)} como Pagada?`}
+              onClick={() => markPaid(i)}
+            />
+          )}
+        </Space>
       ),
     },
   ];
+
+  async function markPaid(invoice: InvoiceRow) {
+    try {
+      await markInvoicePaid(invoice.id);
+      message.success(`Factura C ${formatVoucherNumber(invoice.pointOfSale, invoice.number)} Pagada.`);
+      await load();
+    } catch (err) {
+      message.error(err instanceof Error ? err.message : 'No se pudo marcar como Pagada.');
+    }
+  }
 
   const filtered = status || clientId || period;
 

@@ -52,3 +52,13 @@ export const invoicePdfUrl = (id: number) => `/api/invoices/${id}/pdf`;
 /** "00003-00000042". */
 export const formatVoucherNumber = (pointOfSale: number, number: number) =>
   `${String(pointOfSale).padStart(5, '0')}-${String(number).padStart(8, '0')}`;
+
+/** RF-143 a RF-147: un Admin o Editor pasa la factura a Pagada. */
+export async function markInvoicePaid(id: number): Promise<void> {
+  await api('POST', `/invoices/${id}/mark-paid`);
+}
+
+/** RF-144, RF-146: un Admin o Editor la devuelve a Pendiente de pago. */
+export async function returnInvoiceToPending(id: number): Promise<void> {
+  await api('POST', `/invoices/${id}/return-to-pending`);
+}

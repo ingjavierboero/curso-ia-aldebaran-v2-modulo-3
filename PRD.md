@@ -224,6 +224,7 @@ Reglas que acompañan a las anteriores:
 - RF-146: El sistema debe permitir a un Admin o Editor devolver, desde la interfaz de revisión, una factura en estado Revisión manual a Pendiente de pago.
 - RF-147: El sistema debe permitir a un Admin o Editor pasar, desde el listado de facturas, una factura en estado Pendiente de pago a Pagada.
 - RF-148: El sistema debe permitir a un Admin o Editor marcar un aviso como Revisado desde la interfaz de revisión.
+- RF-216: La interfaz de revisión debe listar las facturas que un usuario pasó de Pago recibido o Revisión manual a Pagada o a Pendiente de pago, con la decisión tomada, el usuario que la tomó, su fecha y hora, el estado y el motivo que tenía la factura, y los emails asociados con sus adjuntos, la clasificación del LLM de cada adjunto y el CUIT y el monto extraídos de cada comprobante; ordenadas de la decisión más reciente a la más antigua y filtrables por cliente y por rango de fechas de la decisión.
 
 ### Recordatorios y dashboard
 - RF-149: El agente debe enviar el último día de cada mes, a la hora de recordatorios (11:00 por defecto), un email recordatorio a cada cliente Activo con deuda vigente, tenga o no productos asignados, salvo a los clientes en revisión.
@@ -489,6 +490,7 @@ AC-141 y AC-142 verifican una regla de resguardo que el flujo normal no produce 
 - AC-151 (RF-140): Dada una factura en Revisión manual con el motivo "monto no coincide", cuando un Admin o Editor la pasa a Pagada o la devuelve a Pendiente de pago, entonces la factura deja de mostrar ese motivo.
 - AC-152 (RF-144, RF-146, RF-134): Dada una factura que un usuario devolvió a Pendiente de pago y un cliente que no está en revisión, cuando llega después un comprobante clasificado como "si" con su CUIT y el monto exacto de esa factura, entonces el agente lo procesa y la factura pasa a Pago recibido.
 - AC-153 (RF-148): Dado un aviso Pendiente, cuando un Admin o Editor lo marca como Revisado, entonces el aviso deja de aparecer entre los Pendientes y queda registrado qué usuario lo revisó.
+- AC-238 (RF-216): Dada una factura en Revisión manual con el motivo "monto no coincide" y dos comprobantes asociados, cuando un Admin o Editor la pasa a Pagada, entonces la factura deja de aparecer entre los pagos a revisar y aparece entre los resueltos con la decisión "Pagada", el usuario que la tomó, la fecha y hora, el estado anterior "Revisión manual", el motivo "monto no coincide" y los dos comprobantes; y una factura que un usuario devolvió de Pago recibido a Pendiente de pago aparece con la decisión "Devuelta a Pendiente de pago".
 
 ### Recordatorios y dashboard
 - AC-154 (RF-149): Dado un cliente Activo que no está en revisión y tiene al menos una factura en Pendiente de pago al último día del mes, cuando el agente ejecuta el proceso de recordatorios, entonces se envía un único email recordatorio a ese cliente y el envío queda registrado en su historial.

@@ -31,3 +31,10 @@ export function SetupRoute({ children }: { children: ReactNode }) {
   if (!needsSetup) return <Navigate to={user ? '/' : '/login'} replace />;
   return children;
 }
+
+/** RF-204: pantallas que solo existen en modo mock. */
+export function MockOnly({ children }: { children: ReactNode }) {
+  const mockMode = useSession((s) => s.appInfo?.mockMode);
+  if (!mockMode) return <Navigate to="/" replace />;
+  return children;
+}

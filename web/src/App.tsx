@@ -7,10 +7,11 @@ import { ClientsPage } from './pages/clients/ClientsPage';
 import { HomePage } from './pages/HomePage';
 import { InvoicesPage } from './pages/invoices/InvoicesPage';
 import { LoginPage } from './pages/LoginPage';
+import { MockMailboxPage } from './pages/mockMailbox/MockMailboxPage';
 import { ProductsPage } from './pages/products/ProductsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { SetupPage } from './pages/SetupPage';
-import { LoginRoute, RequireAuth, SetupRoute } from './routes/guards';
+import { LoginRoute, MockOnly, RequireAuth, SetupRoute } from './routes/guards';
 import { useSession } from './stores/session';
 
 /** Carga el estado de la sesión antes de mostrar cualquier pantalla. */
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
           { path: 'clientes/:id', element: <ClientDetailPage /> },
           { path: 'productos', element: <ProductsPage /> },
           { path: 'facturas', element: <InvoicesPage /> },
+          { path: 'casilla-simulada', element: <MockOnly><MockMailboxPage /></MockOnly> },
           { path: 'configuracion', element: <SettingsPage /> },
         ],
       },

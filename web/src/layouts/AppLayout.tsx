@@ -1,8 +1,9 @@
-import { AppstoreOutlined, FileTextOutlined, HomeOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, FileTextOutlined, HomeOutlined, MailOutlined, SettingOutlined, TeamOutlined } from '@ant-design/icons';
 import { Layout, Menu } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router';
 import styled from 'styled-components';
 import { AppHeader } from '../components/AppHeader';
+import { useSession } from '../stores/session';
 
 const Content = styled(Layout.Content)`
   padding: 24px;
@@ -20,6 +21,11 @@ const MENU_ITEMS = [
 export function AppLayout() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const mockMode = useSession((s) => s.appInfo?.mockMode ?? false);
+  // RF-204: la casilla simulada solo existe en modo mock.
+  const items = mockMode
+    ? [...MENU_ITEMS.slice(0, -1), { key: '/casilla-simulada', icon: <MailOutlined />, label: 'Casilla simulada' }, MENU_ITEMS.at(-1)!]
+    : MENU_ITEMS;
   // /clientes/12 marca "Clientes" en el menú.
   const section = `/${pathname.split('/')[1] ?? ''}`;
 
@@ -31,7 +37,7 @@ export function AppLayout() {
           <Menu
             mode="inline"
             selectedKeys={[section]}
-            items={MENU_ITEMS}
+            items={items}
             onClick={({ key }) => navigate(key)}
             style={{ height: '100%', borderInlineEnd: 0 }}
           />
